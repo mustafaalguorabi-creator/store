@@ -8,11 +8,23 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="application-name" content="متجر النصر">
     <meta name="theme-color" content="#00695c">
-    <title>متجر النصر - V13</title>
+    <title>متجر النصر - V14 (محمي)</title>
     <style>
         :root { --primary: #00695c; --accent: #00897b; --bg: #f5f5f5; --text: #333; --red: #c62828; --green: #2e7d32; --orange: #ef6c00; --grey: #616161; }
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding-bottom: 80px; }
         
+        /* شاشة القفل (جديد) */
+        #loginOverlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--primary); z-index: 10000;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            color: white; transition: 0.3s;
+        }
+        .login-box { background: white; padding: 25px; border-radius: 15px; width: 80%; max-width: 300px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.3); }
+        .login-box h2 { margin-top: 0; color: var(--text); }
+        .login-input { width: 100%; padding: 10px; font-size: 18px; text-align: center; border: 2px solid #ddd; border-radius: 8px; margin-bottom: 15px; box-sizing: border-box; }
+        .btn-login { background: var(--accent); color: white; width: 100%; padding: 12px; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; }
+
         /* Header */
         header { background: var(--primary); color: white; padding: 10px 15px; position: sticky; top: 0; z-index: 1000; box-shadow: 0 2px 5px rgba(0,0,0,0.2); display: flex; align-items: center; justify-content: space-between; gap: 10px;}
         .header-icon-btn { background: none; border: none; color: white; font-size: 22px; cursor: pointer; padding: 5px; }
@@ -33,7 +45,7 @@
         .spinner { border: 4px solid #f3f3f3; border-top: 4px solid var(--primary); border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin: 0 auto; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-        /* Camera Buttons */
+        /* Custom Camera Buttons Styles */
         .camera-buttons-container { display: flex; gap: 10px; }
         .custom-file-label { flex: 1; padding: 12px; border-radius: 8px; color: white; font-weight: bold; text-align: center; cursor: pointer; transition: 0.2s; display: flex; align-items: center; justify-content: center; gap: 5px; }
         .btn-camera { background: var(--accent); }
@@ -54,13 +66,12 @@
         .expense-card { border-right: 4px solid var(--red); display: flex; justify-content: space-between; align-items: center; }
         .expense-amount { font-weight: bold; color: var(--red); font-size: 16px; }
         
-        /* Summaries */
+        /* Summary */
         .summary-box { background: linear-gradient(135deg, #00695c, #004d40); color: white; border-radius: 12px; padding: 15px; margin-bottom: 20px; text-align: center; }
         .summary-grid { display: flex; justify-content: space-around; margin-top: 10px; border-top: 1px solid rgba(255,255,255,0.2); padding-top: 10px; }
         .stat-val { font-size: 20px; font-weight: bold; }
         .stat-label { font-size: 11px; opacity: 0.9; }
         
-        /* Tab Specific Summaries (Debts & Expenses) */
         .tab-summary { background: white; border: 1px solid #ddd; padding: 10px; border-radius: 8px; margin-bottom: 15px; text-align: center; color: var(--text); box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
         .tab-summary-title { font-size: 12px; color: #666; }
         .tab-summary-val { font-size: 22px; font-weight: bold; color: var(--primary); }
@@ -99,6 +110,16 @@
     </style>
 </head>
 <body>
+
+<div id="loginOverlay">
+    <div class="login-box">
+        <h2 style="color:var(--primary)">🔐 متجر النصر</h2>
+        <p>أدخل كلمة المرور للدخول</p>
+        <input type="password" id="passInput" class="login-input" placeholder="****">
+        <button class="btn-login" onclick="checkPass()">دخول</button>
+        <p id="passError" style="color:red; display:none; margin-top:10px">كلمة المرور خطأ</p>
+    </div>
+</div>
 
 <header>
     <button class="header-icon-btn" onclick="window.openFilterModal()" title="فلترة التاريخ">📅</button>
@@ -238,7 +259,7 @@
             </div>
         </div>
         <button class="btn-submit" id="confirmSellBtn">تأكيد البيع</button>
-        <button class="btn-submit btn-close" onclick="window.closeModal('sellModal')">إلغاء</button>
+        <button class="btn-submit btn-close" onclick="window.closeModal('sellModal')">إغلاق</button>
     </div>
 </div>
 
@@ -316,6 +337,26 @@
     const expensesColl = collection(db, "expenses");
     const cartonsColl = collection(db, "cartons");
 
+    // ================== منطق كلمة المرور (جديد) ==================
+    // يتم تعريف الدالة خارج الـ module لتكون متاحة للـ HTML
+    window.checkPass = () => {
+        const pass = document.getElementById('passInput').value;
+        const correctPass = "2020"; // <<<< غيّر الرقم هذا لتغيير كلمة السر
+        
+        if(pass === correctPass) {
+            document.getElementById('loginOverlay').style.top = "-100%"; // إخفاء الشاشة للأعلى
+            sessionStorage.setItem('isLoggedIn', 'true'); // حفظ الدخول مؤقتاً
+        } else {
+            document.getElementById('passError').style.display = 'block';
+        }
+    };
+
+    // التحقق عند فتح التطبيق
+    if(sessionStorage.getItem('isLoggedIn') === 'true') {
+        document.getElementById('loginOverlay').style.display = 'none';
+    }
+
+    // ================== بقية كود التطبيق (نفس V13) ==================
     let products = [], expenses = [], cartons = [];
     let currentTab = 'available';
     let searchQuery = '';
@@ -342,7 +383,6 @@
         
         document.getElementById('activeFilterIndicator').style.display = dateFilter.type !== 'all' ? 'block' : 'none';
 
-        // 1. القوائم المفلترة حسب التبويب
         let list = [];
         if(currentTab === 'available') list = products.filter(p => p.status === 'available');
         else if(currentTab === 'sold') list = products.filter(p => p.status === 'sold');
@@ -350,37 +390,22 @@
         else if(currentTab === 'expenses') list = [...expenses];
         else if(currentTab === 'cartons') list = [...cartons];
 
-        // 2. تطبيق فلتر التاريخ (الآن يتم تطبيقه على كل شيء)
         list = applyDateFilter(list);
 
-        // 3. عرض الملخصات حسب التبويب
-        if(currentTab === 'available' || currentTab === 'sold' || currentTab === 'cartons') {
-            renderSummary(container); // الملخص العام الأزرق
-        }
+        if(currentTab === 'available' || currentTab === 'sold' || currentTab === 'cartons') renderSummary(container);
         
         if(currentTab === 'debts') {
-            // ملخص الديون الخاص
             const totalDebt = list.reduce((sum, item) => sum + (parseFloat(item.remainingDebt)||0), 0);
-            const periodText = dateFilter.type !== 'all' ? '(للفترة المحددة)' : '(الكلي)';
-            container.innerHTML += `
-            <div class="tab-summary">
-                <div class="tab-summary-title">مجموع الديون ${periodText}</div>
-                <div class="tab-summary-val text-red">${totalDebt.toLocaleString()}</div>
-            </div>`;
+            const periodText = dateFilter.type !== 'all' ? '(محدد)' : '(الكلي)';
+            container.innerHTML += `<div class="tab-summary"><div class="tab-summary-title">مجموع الديون ${periodText}</div><div class="tab-summary-val text-red">${totalDebt.toLocaleString()}</div></div>`;
         }
 
         if(currentTab === 'expenses') {
-            // ملخص المصاريف الخاص
             const totalExp = list.reduce((sum, item) => sum + (parseFloat(item.amount)||0), 0);
-            const periodText = dateFilter.type !== 'all' ? '(للفترة المحددة)' : '(الكلي)';
-            container.innerHTML += `
-            <div class="tab-summary">
-                <div class="tab-summary-title">مجموع المصاريف ${periodText}</div>
-                <div class="tab-summary-val text-red">${totalExp.toLocaleString()}</div>
-            </div>`;
+            const periodText = dateFilter.type !== 'all' ? '(محدد)' : '(الكلي)';
+            container.innerHTML += `<div class="tab-summary"><div class="tab-summary-title">مجموع المصاريف ${periodText}</div><div class="tab-summary-val text-red">${totalExp.toLocaleString()}</div></div>`;
         }
 
-        // 4. تطبيق البحث
         if(searchQuery && currentTab !== 'cartons') {
             list = list.filter(item => {
                 if(item.name) return item.name.toLowerCase().includes(searchQuery.toLowerCase());
@@ -389,11 +414,10 @@
             });
         }
 
-        // 5. الترتيب
         if(currentTab === 'available') list.sort((a,b) => b.dateAdded - a.dateAdded);
         else if(currentTab === 'sold' || currentTab === 'debts') list.sort((a,b) => b.dateSold - a.dateSold);
 
-        if(list.length === 0) container.innerHTML += `<div style="text-align:center;padding:20px;color:#999">لا توجد بيانات تطابق الفلتر</div>`;
+        if(list.length === 0) container.innerHTML += `<div style="text-align:center;padding:20px;color:#999">لا توجد بيانات</div>`;
         
         list.forEach(item => {
             if(currentTab === 'cartons') container.innerHTML += createCartonCard(item);
@@ -403,11 +427,10 @@
         });
     }
 
-    // ================== Image Preview ==================
+    // --- Image Preview ---
     window.previewImage = (input, previewId) => {
         if(input.id.includes('Camera')) { document.getElementById(input.id.replace('Camera', 'Gallery')).value = ''; } 
         else { document.getElementById(input.id.replace('Gallery', 'Camera')).value = ''; }
-
         if (input.files && input.files[0]) {
             const reader = new FileReader();
             reader.onload = function(e) {
@@ -418,23 +441,19 @@
         }
     };
 
-    // ================== Filter Logic ==================
+    // --- Filters ---
     window.openFilterModal = () => document.getElementById('filterModal').classList.add('open');
-    window.toggleCustomDate = () => {
-        const type = document.getElementById('filterType').value;
-        document.getElementById('customDateInputs').classList.toggle('hidden', type !== 'custom');
-    };
+    window.toggleCustomDate = () => { document.getElementById('customDateInputs').classList.toggle('hidden', document.getElementById('filterType').value !== 'custom'); };
     window.applyFilter = () => {
         const type = document.getElementById('filterType').value;
         dateFilter = { type: type, start: null, end: null };
         if(type === 'custom') {
             const start = document.getElementById('filterStart').value; const end = document.getElementById('filterEnd').value;
-            if(!start || !end) return alert('يرجى تحديد التاريخ');
+            if(!start || !end) return alert('حدد التاريخ');
             dateFilter.start = new Date(start).setHours(0,0,0,0); dateFilter.end = new Date(end).setHours(23,59,59,999);
         }
         window.closeModal('filterModal'); render();
     };
-
     function applyDateFilter(list) {
         if(dateFilter.type === 'all') return list;
         const now = new Date(); now.setHours(0,0,0,0);
@@ -452,16 +471,11 @@
         });
     }
 
-    // ================== Expense Delete (New) ==================
-    window.deleteExpense = async (id) => {
-        if(confirm('هل أنت متأكد من حذف هذا المصروف؟')) {
-            await deleteDoc(doc(db, "expenses", id));
-        }
-    };
+    // --- Delete Expense ---
+    window.deleteExpense = async (id) => { if(confirm('حذف المصروف؟')) await deleteDoc(doc(db, "expenses", id)); };
 
-    // ================== Summary (Updated) ==================
+    // --- Summary ---
     function renderSummary(container) {
-        // حساب الملخص العام باستخدام القوائم *المفلترة* ليكون تفاعلياً
         const filteredProducts = applyDateFilter(products);
         const filteredCartons = applyDateFilter(cartons);
         const filteredExpenses = applyDateFilter(expenses);
@@ -492,96 +506,36 @@
         </div>`;
     }
 
-    // ================== Helpers & Cards ==================
-    function createExpenseCard(e) { 
-        return `
-        <div class="card expense-card">
-            <div>
-                <div class="prod-name">${e.type}</div>
-                <div class="prod-meta">${e.note||''}</div>
-                <div class="prod-meta">${new Date(e.date).toLocaleDateString()}</div>
-            </div>
-            <div style="display:flex; align-items:center; gap:10px;">
-                <div class="expense-amount">-${e.amount}</div>
-                <button class="btn-trash" onclick="window.deleteExpense('${e.id}')">🗑️</button>
-            </div>
-        </div>`; 
-    }
-
+    // --- Cards ---
+    function createExpenseCard(e) { return `<div class="card expense-card"><div><div class="prod-name">${e.type}</div><div class="prod-meta">${e.note||''}</div><div class="prod-meta">${new Date(e.date).toLocaleDateString()}</div></div><div style="display:flex;align-items:center;gap:10px;"><div class="expense-amount">-${e.amount}</div><button class="btn-trash" onclick="window.deleteExpense('${e.id}')">🗑️</button></div></div>`; }
     function createProductCard(p) {
         const imgSrc = p.image || 'https://via.placeholder.com/80?text=No+Img';
         const isSold = p.status === 'sold';
         let sourceInfo = "مفرد";
-        if(p.costType === 'carton') {
-            const crt = cartons.find(c => c.id === p.cartonId);
-            sourceInfo = crt ? `📦 ${crt.number}` : "صندوق (محذوف)";
-        }
-        let footer = isSold ? 
-            `<div class="prod-meta">بيع: <b style="color:var(--accent)">${p.soldPrice}</b> ${p.remainingDebt > 0 ? `<span class="debt-badge">دين: ${p.remainingDebt}</span>` : ''}</div>` : 
-            `<div class="prod-meta">متوقع: <b>${p.expectedPrice}</b></div>`;
+        if(p.costType === 'carton') { const crt = cartons.find(c => c.id === p.cartonId); sourceInfo = crt ? `📦 ${crt.number}` : "صندوق (محذوف)"; }
+        let footer = isSold ? `<div class="prod-meta">بيع: <b style="color:var(--accent)">${p.soldPrice}</b> ${p.remainingDebt > 0 ? `<span class="debt-badge">دين: ${p.remainingDebt}</span>` : ''}</div>` : `<div class="prod-meta">متوقع: <b>${p.expectedPrice}</b></div>`;
         const btn = !isSold ? `<button class="btn-action btn-sell" onclick="window.openSellModal(event, '${p.id}')">بيع</button>` : '';
-
-        return `
-        <div class="card product-card" onclick="window.openDetailsModal('${p.id}')">
-            <img src="${imgSrc}" class="prod-img" onclick="event.stopPropagation(); window.openImageModal('${imgSrc}')">
-            <div class="prod-details">
-                <div class="prod-name">${p.name}</div>
-                <div class="prod-meta">${sourceInfo}</div>
-                ${footer}
-            </div>
-            ${btn}
-        </div>`;
+        return `<div class="card product-card" onclick="window.openDetailsModal('${p.id}')"><img src="${imgSrc}" class="prod-img" onclick="event.stopPropagation(); window.openImageModal('${imgSrc}')"><div class="prod-details"><div class="prod-name">${p.name}</div><div class="prod-meta">${sourceInfo}</div>${footer}</div>${btn}</div>`;
     }
-    
-    // ... (بقية دوال الكروت createCartonCard, createDebtCard - نفس V12)
     function createCartonCard(c) {
         const items = products.filter(p => p.cartonId === c.id);
         const soldItems = items.filter(p => p.status === 'sold');
-        const totalSales = soldItems.reduce((sum, p) => sum + (parseFloat(p.soldPrice)||0), 0);
-        const profit = totalSales - c.cost;
+        const profit = soldItems.reduce((sum, p) => sum + (parseFloat(p.soldPrice)||0), 0) - c.cost;
         const color = profit >= 0 ? 'green' : 'red';
-        return `
-        <div class="card carton-card" onclick="window.openCartonManage('${c.id}')">
-            <div style="display:flex; justify-content:space-between">
-                <div class="prod-name">${c.number}</div>
-                <div style="font-weight:bold; color:var(--primary)">${c.cost}</div>
-            </div>
-            <div class="prod-meta">${c.note || ''}</div>
-            <div class="carton-stat">
-                <span>قطع: ${items.length} (مباع: ${soldItems.length})</span>
-                <span style="color:${color}; font-weight:bold">ربح: ${profit}</span>
-            </div>
-        </div>`;
+        return `<div class="card carton-card" onclick="window.openCartonManage('${c.id}')"><div style="display:flex; justify-content:space-between"><div class="prod-name">${c.number}</div><div style="font-weight:bold; color:var(--primary)">${c.cost}</div></div><div class="prod-meta">${c.note || ''}</div><div class="carton-stat"><span>قطع: ${items.length} (مباع: ${soldItems.length})</span><span style="color:${color}; font-weight:bold">ربح: ${profit}</span></div></div>`;
     }
     function createDebtCard(p) { return `<div class="card"><div style="display:flex; justify-content:space-between"><div><div class="prod-name">${p.customerName||'زبون'}</div><div class="prod-meta">اشترى: ${p.name}</div><div class="prod-meta">تاريخ: ${new Date(p.dateSold).toLocaleDateString()}</div></div><div style="text-align:left"><div style="color:red;font-weight:bold;font-size:18px">${p.remainingDebt}</div><button class="btn-action btn-pay" onclick="window.openPayDebt('${p.id}')">تسديد</button></div></div></div>`; }
 
-    // ... (بقية الوظائف الأساسية - نفس V12)
+    // --- Helpers ---
     window.openImageModal = (src) => { if(src.includes('placeholder')) return; document.getElementById('fullImageDisplay').src = src; document.getElementById('imageModal').classList.add('open'); };
-    const compress = (file, cb) => {
-         if (!file) return cb(null);
-         const reader = new FileReader(); reader.readAsDataURL(file);
-         reader.onload = e => { const img = new Image(); img.src = e.target.result; img.onload = () => { const canvas = document.createElement('canvas'); const scale = 600 / img.width; canvas.width = 600; canvas.height = img.height * scale; canvas.getContext("2d").drawImage(img,0,0,canvas.width,canvas.height); cb(canvas.toDataURL("image/jpeg",0.7)); } }
-    };
-    
-    // Carton Manage
-    window.openCartonManage = (id) => {
-        editingCartonId = id; const c = cartons.find(x => x.id === id); document.getElementById('cmTitle').innerText = `إدارة الصندوق: ${c.number}`; document.getElementById('editCName').value = c.number; document.getElementById('editCCost').value = c.cost; document.getElementById('editCNote').value = c.note || ''; document.getElementById('cartonManageModal').classList.add('open');
-    };
-    document.getElementById('updateCartonBtn').onclick = async () => { await updateDoc(doc(db, "cartons", editingCartonId), { number: document.getElementById('editCName').value, cost: document.getElementById('editCCost').value, note: document.getElementById('editCNote').value }); window.closeModal('cartonManageModal'); };
-    document.getElementById('deleteCartonBtn').onclick = async () => { const linkedItems = products.filter(p => p.cartonId === editingCartonId); if(linkedItems.length > 0) { if(!confirm(`تحذير: يوجد ${linkedItems.length} قطع في هذا الصندوق. هل أنت متأكد؟`)) return; } else { if(!confirm('حذف الصندوق نهائياً؟')) return; } await deleteDoc(doc(db, "cartons", editingCartonId)); window.closeModal('cartonManageModal'); };
-    window.viewCartonContents = () => { window.closeModal('cartonManageModal'); const c = cartons.find(x => x.id === editingCartonId); const items = products.filter(p => p.cartonId === editingCartonId); const soldCount = items.filter(p => p.status === 'sold').length; document.getElementById('ccTitle').innerText = `محتويات ${c.number}`; document.getElementById('ccSummary').innerText = `الكلي: ${items.length} | المباع: ${soldCount}`; const listContainer = document.getElementById('ccItemsList'); listContainer.innerHTML = ''; if(items.length === 0) listContainer.innerHTML = '<p style="text-align:center">فارغ</p>'; items.forEach(p => listContainer.innerHTML += createProductCard(p)); document.getElementById('cartonContentsModal').classList.add('open'); };
-
-    // Common
+    const compress = (file, cb) => { if (!file) return cb(null); const reader = new FileReader(); reader.readAsDataURL(file); reader.onload = e => { const img = new Image(); img.src = e.target.result; img.onload = () => { const canvas = document.createElement('canvas'); const scale = 600 / img.width; canvas.width = 600; canvas.height = img.height * scale; canvas.getContext("2d").drawImage(img,0,0,canvas.width,canvas.height); cb(canvas.toDataURL("image/jpeg",0.7)); } } };
     window.closeModal = (id) => document.getElementById(id).classList.remove('open');
-    window.openAddModal = () => { 
-        document.getElementById('pImgInputCamera').value = ''; document.getElementById('pImgInputGallery').value = ''; document.getElementById('addImgPreviewContainer').classList.add('hidden'); document.getElementById('addImgPreview').src = '';
-        const select = document.getElementById('pCartonSelect'); select.innerHTML = '<option value="">-- اختر صندوق --</option>'; cartons.forEach(c => { select.innerHTML += `<option value="${c.id}" data-price="${c.cost}">${c.number}</option>`; }); document.getElementById('addModal').classList.add('open'); 
-    };
+    window.openAddModal = () => { document.getElementById('pImgInputCamera').value=''; document.getElementById('pImgInputGallery').value=''; document.getElementById('addImgPreviewContainer').classList.add('hidden'); document.getElementById('addImgPreview').src=''; const select = document.getElementById('pCartonSelect'); select.innerHTML = '<option value="">-- اختر صندوق --</option>'; cartons.forEach(c => { select.innerHTML += `<option value="${c.id}" data-price="${c.cost}">${c.number}</option>`; }); document.getElementById('addModal').classList.add('open'); };
     window.openAddCartonModal = () => document.getElementById('addCartonModal').classList.add('open');
     window.toggleCostInputs = (mode) => { const type = document.getElementById(mode==='add'?'costType':'editCostType').value; const single = document.getElementById(mode==='add'?'singleCostInput':'editSingleCostDiv'); const carton = document.getElementById(mode==='add'?'cartonCostInput':'editCartonCostDiv'); if(type==='single') { if(single) single.classList.remove('hidden'); if(carton) carton.classList.add('hidden'); } else { if(single) single.classList.add('hidden'); if(carton) carton.classList.remove('hidden'); } };
     window.updateCartonPriceDisplay = () => { const select = document.getElementById('pCartonSelect'); const price = select.options[select.selectedIndex].getAttribute('data-price') || 0; document.getElementById('pCartonPriceDisplay').innerText = price; };
 
-    // Main Actions
+    // --- Actions ---
     document.getElementById('saveBtn').onclick = () => { 
         const file = document.getElementById('pImgInputCamera').files[0] || document.getElementById('pImgInputGallery').files[0];
         document.getElementById('saveBtn').innerText = "جاري الحفظ..."; 
@@ -608,6 +562,10 @@
     document.getElementById('saveExpBtn').onclick = async () => { const amt = document.getElementById('expAmount').value; if(!amt) return; await addDoc(expensesColl, { type: document.getElementById('expType').value, amount: amt, note: document.getElementById('expNote').value, date: Date.now() }); window.closeModal('expenseModal'); };
     window.openPayDebt = (id) => { selectedDebtProduct = products.find(p => p.id === id); document.getElementById('payDebtCustomer').innerText = selectedDebtProduct.customerName; document.getElementById('payDebtAmount').innerText = selectedDebtProduct.remainingDebt; document.getElementById('payAmount').value = ''; document.getElementById('payDebtModal').classList.add('open'); };
     document.getElementById('confirmPayBtn').onclick = async () => { const pay = parseFloat(document.getElementById('payAmount').value); if(!pay) return; const newDebt = selectedDebtProduct.remainingDebt - pay; if(newDebt < 0) return alert('المبلغ أكبر من الدين'); await updateDoc(doc(db, "products", selectedDebtProduct.id), { remainingDebt: newDebt, amountPaid: (parseFloat(selectedDebtProduct.amountPaid)||0) + pay }); window.closeModal('payDebtModal'); };
+    window.openCartonManage = (id) => { editingCartonId = id; const c = cartons.find(x => x.id === id); document.getElementById('cmTitle').innerText = `إدارة الصندوق: ${c.number}`; document.getElementById('editCName').value = c.number; document.getElementById('editCCost').value = c.cost; document.getElementById('editCNote').value = c.note || ''; document.getElementById('cartonManageModal').classList.add('open'); };
+    document.getElementById('updateCartonBtn').onclick = async () => { await updateDoc(doc(db, "cartons", editingCartonId), { number: document.getElementById('editCName').value, cost: document.getElementById('editCCost').value, note: document.getElementById('editCNote').value }); window.closeModal('cartonManageModal'); };
+    document.getElementById('deleteCartonBtn').onclick = async () => { const linkedItems = products.filter(p => p.cartonId === editingCartonId); if(linkedItems.length > 0) { if(!confirm(`تحذير: يوجد ${linkedItems.length} قطع في هذا الصندوق. هل أنت متأكد؟`)) return; } else { if(!confirm('حذف الصندوق نهائياً؟')) return; } await deleteDoc(doc(db, "cartons", editingCartonId)); window.closeModal('cartonManageModal'); };
+    window.viewCartonContents = () => { window.closeModal('cartonManageModal'); const c = cartons.find(x => x.id === editingCartonId); const items = products.filter(p => p.cartonId === editingCartonId); const soldCount = items.filter(p => p.status === 'sold').length; document.getElementById('ccTitle').innerText = `محتويات ${c.number}`; document.getElementById('ccSummary').innerText = `الكلي: ${items.length} | المباع: ${soldCount}`; const listContainer = document.getElementById('ccItemsList'); listContainer.innerHTML = ''; if(items.length === 0) listContainer.innerHTML = '<p style="text-align:center">فارغ</p>'; items.forEach(p => listContainer.innerHTML += createProductCard(p)); document.getElementById('cartonContentsModal').classList.add('open'); };
 
     const tabs = ['tabCartons', 'tabAvailable', 'tabSold', 'tabDebts', 'tabExpenses'];
     tabs.forEach(t => document.getElementById(t).onclick = () => { currentTab = t.replace('tab', '').toLowerCase(); tabs.forEach(x => document.getElementById(x).classList.remove('active')); document.getElementById(t).classList.add('active'); render(); });
