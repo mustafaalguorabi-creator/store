@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <link rel="manifest" href="manifest.json">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="application-name" content="متجر النصر">
+    <meta name="theme-color" content="#00695c">
+    <title>متجر النصر - V13</title>
+    <style>
+        :root { --primary: #00695c; --accent: #00897b; --bg: #f5f5f5; --text: #333; --red: #c62828; --green: #2e7d32; --orange: #ef6c00; --grey: #616161; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding-bottom: 80px; }
+        
+        /* Header */
+        header { background: var(--primary); color: white; padding: 10px 15px; position: sticky; top: 0; z-index: 1000; box-shadow: 0 2px 5px rgba(0,0,0,0.2); display: flex; align-items: center; justify-content: space-between; gap: 10px;}
+        .header-icon-btn { background: none; border: none; color: white; font-size: 22px; cursor: pointer; padding: 5px; }
+        .search-box { flex: 1; position: relative; }
+        .search-input { width: 100%; padding: 8px 35px 8px 10px; border-radius: 20px; border: none; outline: none; font-size: 14px; background: rgba(255,255,255,0.9); }
+        .search-icon { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: #666; font-size: 12px;}
+        .status-dot { width: 10px; height: 10px; border-radius: 50%; background: #ccc; border: 2px solid white; }
+        .status-online { background: #00e676; }
+        #activeFilterIndicator { font-size: 10px; background: var(--orange); padding: 2px 5px; border-radius: 4px; position: absolute; top: 35px; left: 50px; display: none; }
+
+        /* Tabs */
+        .tabs { display: flex; background: white; padding: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); overflow-x: auto; white-space: nowrap;}
+        .tab { flex: 1; text-align: center; padding: 10px 5px; border-radius: 8px; cursor: pointer; transition: 0.3s; font-weight: bold; color: #777; font-size: 13px; }
+        .tab.active { background: var(--accent); color: white; }
+
+        .container { padding: 15px; max-width: 600px; margin: 0 auto; }
+        #loader { text-align: center; padding: 20px; display: none; }
+        .spinner { border: 4px solid #f3f3f3; border-top: 4px solid var(--primary); border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin: 0 auto; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* Camera Buttons */
+        .camera-buttons-container { display: flex; gap: 10px; }
+        .custom-file-label { flex: 1; padding: 12px; border-radius: 8px; color: white; font-weight: bold; text-align: center; cursor: pointer; transition: 0.2s; display: flex; align-items: center; justify-content: center; gap: 5px; }
+        .btn-camera { background: var(--accent); }
+        .btn-gallery { background: var(--grey); }
+        input[type="file"] { display: none; }
+
+        /* Cards */
+        .card { background: white; border-radius: 12px; padding: 12px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); position: relative; }
+        .product-card { display: flex; gap: 10px; cursor: pointer; transition: 0.2s; }
+        .product-card:active { transform: scale(0.98); background: #e0f2f1; }
+        .prod-img { width: 80px; height: 80px; background: #eee; border-radius: 8px; object-fit: cover; cursor: zoom-in; }
+        .prod-details { flex: 1; pointer-events: none; }
+        .prod-name { font-weight: bold; font-size: 16px; margin-bottom: 4px; }
+        .prod-meta { font-size: 12px; color: #666; margin-bottom: 2px; }
+        .debt-badge { background: #ffebee; color: #c62828; padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; display: inline-block; margin-top: 5px;}
+        .carton-card { border-right: 4px solid var(--orange); cursor: pointer; }
+        .carton-stat { display: flex; justify-content: space-between; font-size: 12px; margin-top: 8px; background: #fff3e0; padding: 5px; border-radius: 4px;}
+        .expense-card { border-right: 4px solid var(--red); display: flex; justify-content: space-between; align-items: center; }
+        .expense-amount { font-weight: bold; color: var(--red); font-size: 16px; }
+        
+        /* Summaries */
+        .summary-box { background: linear-gradient(135deg, #00695c, #004d40); color: white; border-radius: 12px; padding: 15px; margin-bottom: 20px; text-align: center; }
+        .summary-grid { display: flex; justify-content: space-around; margin-top: 10px; border-top: 1px solid rgba(255,255,255,0.2); padding-top: 10px; }
+        .stat-val { font-size: 20px; font-weight: bold; }
+        .stat-label { font-size: 11px; opacity: 0.9; }
+        
+        /* Tab Specific Summaries (Debts & Expenses) */
+        .tab-summary { background: white; border: 1px solid #ddd; padding: 10px; border-radius: 8px; margin-bottom: 15px; text-align: center; color: var(--text); box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+        .tab-summary-title { font-size: 12px; color: #666; }
+        .tab-summary-val { font-size: 22px; font-weight: bold; color: var(--primary); }
+        .text-red { color: var(--red); }
+
+        /* FABs */
+        .fab-container { position: fixed; bottom: 20px; left: 20px; display: flex; flex-direction: column; gap: 10px; z-index: 500; }
+        .fab { width: 55px; height: 55px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); cursor: pointer; border: none; color: white; }
+        .fab-add { background: var(--accent); }
+        .fab-box { background: var(--orange); width: 45px; height: 45px; font-size: 20px; }
+        .fab-expense { background: var(--red); font-size: 20px; width: 45px; height: 45px; }
+
+        /* Modals */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 2000; align-items: center; justify-content: center; }
+        .modal.open { display: flex; }
+        .modal-content { background: white; padding: 20px; border-radius: 15px; width: 90%; max-width: 400px; max-height: 90vh; overflow-y: auto; }
+        .image-modal-content { background: transparent; box-shadow: none; padding: 0; display: flex; justify-content: center; width: 100%; }
+        .full-image { width: 100%; max-height: 80vh; object-fit: contain; border-radius: 8px; }
+        
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-size: 13px; font-weight: bold; }
+        input, select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
+        .btn-submit { background: var(--primary); color: white; border: none; padding: 12px; width: 100%; border-radius: 8px; font-weight: bold; font-size: 16px; margin-top: 10px; cursor: pointer; width: 100%; }
+        .btn-delete { background: var(--red); color: white; margin-top: 10px; }
+        .btn-orange { background: var(--orange); color: white; margin-top: 10px; }
+        .btn-close { background: #ddd; color: #333; margin-top: 10px; }
+        .btn-action { padding: 5px 10px; border-radius: 5px; border: none; cursor: pointer; font-size: 12px; color: white; margin-left: 5px; }
+        .btn-sell { background: var(--primary); }
+        .btn-pay { background: var(--green); }
+        .btn-trash { background: none; border: none; font-size: 18px; cursor: pointer; }
+        .hidden { display: none; }
+        .img-preview { width: 100%; height: 150px; object-fit: contain; background: #f9f9f9; border: 1px dashed #ccc; border-radius: 8px; margin-bottom: 10px; }
+        .row { display: flex; gap: 10px; }
+        .date-badge { font-size: 12px; color: #555; background: #eee; padding: 5px; border-radius: 5px; display: inline-block; margin-top: 5px; width: 100%; text-align: center;}
+
+    </style>
+</head>
+<body>
+
+<header>
+    <button class="header-icon-btn" onclick="window.openFilterModal()" title="فلترة التاريخ">📅</button>
+    <div class="search-box">
+        <span class="search-icon">🔍</span>
+        <input type="text" class="search-input" id="searchInput" placeholder="بحث..." disabled>
+    </div>
+    <div id="statusIndicator" class="status-dot" title="حالة الاتصال"></div>
+    <span id="activeFilterIndicator">فلتر نشط</span>
+</header>
+
+<div class="tabs">
+    <div id="tabCartons" class="tab">📦 الصناديق</div>
+    <div id="tabAvailable" class="tab active">المتوفر</div>
+    <div id="tabSold" class="tab">المبيعات</div>
+    <div id="tabDebts" class="tab">الديون</div>
+    <div id="tabExpenses" class="tab">المصاريف</div>
+</div>
+
+<div id="loader"><div class="spinner"></div><p>جاري تحميل البيانات...</p></div>
+
+<div class="container" id="mainContainer"></div>
+
+<div class="fab-container">
+    <button class="fab fab-expense" onclick="window.openExpenseModal()" title="تسجيل مصروف">💸</button>
+    <button class="fab fab-box" onclick="window.openAddCartonModal()" title="إضافة صندوق">📦</button>
+    <button class="fab fab-add" onclick="window.openAddModal()" title="إضافة بضاعة">+</button>
+</div>
+
+<div class="modal" id="addModal">
+    <div class="modal-content">
+        <h3 style="margin-top:0">إضافة بضاعة</h3>
+        <div class="form-group">
+            <label>صورة المنتج</label>
+            <div class="camera-buttons-container">
+                <label for="pImgInputCamera" class="custom-file-label btn-camera">📷 كاميرا مباشرة</label>
+                <input type="file" id="pImgInputCamera" accept="image/*" capture="environment" onchange="previewImage(this, 'addImgPreview')">
+                <label for="pImgInputGallery" class="custom-file-label btn-gallery">🖼️ من الاستوديو</label>
+                <input type="file" id="pImgInputGallery" accept="image/*" onchange="previewImage(this, 'addImgPreview')">
+            </div>
+            <div id="addImgPreviewContainer" class="hidden" style="margin-top:10px; text-align:center;">
+                <img id="addImgPreview" style="width:120px; height:120px; object-fit:cover; border-radius:8px; border:2px solid #eee; padding:2px;">
+            </div>
+        </div>
+        <div class="form-group"> <label>اسم المنتج</label> <input type="text" id="pName"> </div>
+        <div class="form-group"> <label>المصدر</label> <select id="costType" onchange="toggleCostInputs('add')"> <option value="single">مفرد</option> <option value="carton">صندوق</option> </select> </div>
+        <div id="singleCostInput" class="form-group"> <label>سعر الشراء المفرد</label> <input type="number" id="pCost"> </div>
+        <div id="cartonCostInput" class="form-group hidden">
+            <label>اختر الصندوق</label> <select id="pCartonSelect" onchange="updateCartonPriceDisplay()"></select>
+            <p style="font-size:11px; color:#666; margin-top:5px">سعر الصندوق: <span id="pCartonPriceDisplay">0</span></p>
+        </div>
+        <div class="form-group"> <label>سعر البيع المتوقع</label> <input type="number" id="pExpectedPrice"> </div>
+        <button class="btn-submit" id="saveBtn">حفظ</button>
+        <button class="btn-submit btn-close" onclick="window.closeModal('addModal')">إلغاء</button>
+    </div>
+</div>
+
+<div class="modal" id="filterModal">
+    <div class="modal-content">
+        <h3 style="margin-top:0">فلترة حسب التاريخ</h3>
+        <div class="form-group">
+            <label>الفترة</label>
+            <select id="filterType" onchange="toggleCustomDate()">
+                <option value="all">الكل (بدون فلتر)</option>
+                <option value="today">اليوم</option>
+                <option value="month">هذا الشهر</option>
+                <option value="custom">تخصيص (من - إلى)</option>
+            </select>
+        </div>
+        <div id="customDateInputs" class="hidden">
+            <div class="row">
+                <div style="flex:1"> <label>من تاريخ</label> <input type="date" id="filterStart"> </div>
+                <div style="flex:1"> <label>إلى تاريخ</label> <input type="date" id="filterEnd"> </div>
+            </div>
+        </div>
+        <button class="btn-submit" onclick="applyFilter()">تطبيق الفلتر</button>
+        <button class="btn-submit btn-close" onclick="window.closeModal('filterModal')">إلغاء</button>
+    </div>
+</div>
+
+<div class="modal" id="imageModal" onclick="window.closeModal('imageModal')">
+    <div class="modal-content image-modal-content">
+        <img id="fullImageDisplay" class="full-image" src="">
+    </div>
+</div>
+
+<div class="modal" id="cartonManageModal">
+    <div class="modal-content">
+        <h3 id="cmTitle" style="margin-top:0; color:var(--orange)">إدارة الصندوق</h3>
+        <div class="form-group"> <label>رقم/اسم الصندوق</label> <input type="text" id="editCName"> </div>
+        <div class="form-group"> <label>سعر التكلفة</label> <input type="number" id="editCCost"> </div>
+        <div class="form-group"> <label>ملاحظات</label> <input type="text" id="editCNote"> </div>
+        <input type="hidden" id="editingCartonId">
+        <button class="btn-submit" id="updateCartonBtn">حفظ التعديلات</button>
+        <hr style="margin: 15px 0; border:0; border-top:1px solid #eee;">
+        <button class="btn-submit btn-orange" onclick="viewCartonContents()">👁️ عرض المحتويات</button>
+        <button class="btn-submit btn-delete" id="deleteCartonBtn">حذف الصندوق</button>
+        <button class="btn-submit btn-close" onclick="window.closeModal('cartonManageModal')">إغلاق</button>
+    </div>
+</div>
+
+<div class="modal" id="cartonContentsModal">
+    <div class="modal-content" style="max-width: 500px;">
+        <h3 id="ccTitle" style="margin-top:0; color:var(--orange); text-align:center"></h3>
+        <div style="background:#fff3e0; padding:10px; border-radius:8px; margin-bottom:15px; font-size:13px; text-align:center">
+             ملخص: <span id="ccSummary"></span>
+        </div>
+        <div id="ccItemsList" style="max-height:60vh; overflow-y:auto; padding:5px;"></div>
+        <button class="btn-submit btn-close" onclick="window.closeModal('cartonContentsModal')">إغلاق</button>
+    </div>
+</div>
+
+<div class="modal" id="addCartonModal">
+    <div class="modal-content">
+        <h3 style="margin-top:0; color:var(--orange)">إضافة صندوق جديد</h3>
+        <div class="form-group"> <label>رقم/اسم الصندوق</label> <input type="text" id="cName" placeholder="مثلاً: C-101"> </div>
+        <div class="form-group"> <label>سعر التكلفة</label> <input type="number" id="cCost"> </div>
+        <div class="form-group"> <label>ملاحظات</label> <input type="text" id="cNote"> </div>
+        <button class="btn-submit" id="saveCartonBtn" style="background:var(--orange)">حفظ</button>
+        <button class="btn-submit btn-close" onclick="window.closeModal('addCartonModal')">إلغاء</button>
+    </div>
+</div>
+
+<div class="modal" id="sellModal">
+    <div class="modal-content">
+        <h3>بيع: <span id="sellItemName" style="color:var(--primary)"></span></h3>
+        <div class="form-group"> <label>سعر البيع النهائي</label> <input type="number" id="finalPrice"> </div>
+        <div style="background:#f9f9f9; padding:10px; border-radius:8px; margin-bottom:15px">
+            <label style="display:flex; align-items:center; gap:10px; cursor:pointer;">
+                <input type="checkbox" id="isDebtCheck" style="width:auto;"> <span>هل يوجد متبقي (دين)؟</span>
+            </label>
+            <div id="debtFields" class="hidden" style="margin-top:10px">
+                <div class="form-group"> <label>الواصل</label> <input type="number" id="amountPaid"> </div>
+                <div class="form-group"> <label>اسم الزبون</label> <input type="text" id="customerName"> </div>
+                <div class="form-group"> <label>رقم الهاتف</label> <input type="text" id="customerPhone"> </div>
+                <p style="font-size:12px; color:#c62828; font-weight:bold">المتبقي: <span id="debtCalc">0</span></p>
+            </div>
+        </div>
+        <button class="btn-submit" id="confirmSellBtn">تأكيد البيع</button>
+        <button class="btn-submit btn-close" onclick="window.closeModal('sellModal')">إلغاء</button>
+    </div>
+</div>
+
+<div class="modal" id="detailsModal">
+    <div class="modal-content">
+        <h3 style="margin-top:0; text-align:center">تعديل التفاصيل</h3>
+        <img id="editImgPreview" class="img-preview" src="" onclick="openImageModal(this.src)">
+        <div class="form-group">
+            <label>تغيير الصورة</label>
+            <div class="camera-buttons-container">
+                <label for="editImgInputCamera" class="custom-file-label btn-camera" style="font-size:12px; padding:8px;">📷 كاميرا</label>
+                <input type="file" id="editImgInputCamera" accept="image/*" capture="environment" onchange="previewImage(this, 'editImgPreview')">
+                <label for="editImgInputGallery" class="custom-file-label btn-gallery" style="font-size:12px; padding:8px;">🖼️ استوديو</label>
+                <input type="file" id="editImgInputGallery" accept="image/*" onchange="previewImage(this, 'editImgPreview')">
+            </div>
+        </div>
+        <div class="form-group"> <label>الاسم</label> <input type="text" id="editName"> </div>
+        <div class="form-group"> <label>المصدر</label> <select id="editCostType" disabled> <option value="single">مفرد</option> <option value="carton">صندوق</option> </select> </div>
+        <div id="editSingleCostDiv" class="form-group"> <label>سعر الشراء</label> <input type="number" id="editCost"> </div>
+        <div class="row form-group">
+            <div style="flex:1"> <label>بيع متوقع</label> <input type="number" id="editExpectedPrice"> </div>
+            <div style="flex:1" id="editSoldPriceDiv" class="hidden"> <label>بيع فعلي</label> <input type="number" id="editSoldPrice"> </div>
+        </div>
+        <div style="margin:10px 0; border-top:1px solid #eee; padding-top:10px;">
+            <div class="date-badge">📅 إضافة: <span id="displayDateAdded">-</span></div>
+            <div class="date-badge" id="displayDateSoldDiv">💰 بيع: <span id="displayDateSold">-</span></div>
+        </div>
+        <button class="btn-submit" id="editBtn">حفظ التعديلات</button>
+        <button class="btn-submit btn-delete" id="deleteBtn">حذف المنتج</button>
+        <button class="btn-submit btn-close" onclick="window.closeModal('detailsModal')">إغلاق</button>
+    </div>
+</div>
+
+<div class="modal" id="payDebtModal">
+    <div class="modal-content">
+        <h3>تسديد دين</h3>
+        <p>الزبون: <b id="payDebtCustomer"></b></p>
+        <p>الدين: <b id="payDebtAmount" style="color:red"></b></p>
+        <div class="form-group"> <label>المبلغ المدفوع</label> <input type="number" id="payAmount"> </div>
+        <button class="btn-submit" id="confirmPayBtn" style="background:var(--green)">استلام</button>
+        <button class="btn-submit btn-close" onclick="window.closeModal('payDebtModal')">إلغاء</button>
+    </div>
+</div>
+
+<div class="modal" id="expenseModal">
+    <div class="modal-content">
+        <h3 style="margin-top:0; color:var(--red)">تسجيل مصروف</h3>
+        <div class="form-group">
+            <label>النوع</label>
+            <select id="expType"> <option value="نثرية">نثرية</option> <option value="نقل">نقل</option> <option value="ايجار">إيجار</option> <option value="اكياس">أكياس</option> <option value="اخرى">أخرى</option> </select>
+        </div>
+        <div class="form-group"> <label>المبلغ</label> <input type="number" id="expAmount"> </div>
+        <div class="form-group"> <label>ملاحظات</label> <input type="text" id="expNote"> </div>
+        <button class="btn-submit" id="saveExpBtn" style="background:var(--red)">تسجيل</button>
+        <button class="btn-submit btn-close" onclick="window.closeModal('expenseModal')">إلغاء</button>
+    </div>
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyC6t0aokuoFiqcKuSL7cXfIw_Q99QsdGD8",
+        authDomain: "alnasr-store-7bc79.firebaseapp.com",
+        projectId: "alnasr-store-7bc79",
+        storageBucket: "alnasr-store-7bc79.firebasestorage.app",
+        messagingSenderId: "9302174900",
+        appId: "1:9302174900:web:493ae4c2f4cf07eff6bbe1"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const productsColl = collection(db, "products");
+    const expensesColl = collection(db, "expenses");
+    const cartonsColl = collection(db, "cartons");
+
+    let products = [], expenses = [], cartons = [];
+    let currentTab = 'available';
+    let searchQuery = '';
+    let selectedProductId = null;
+    let editingProductId = null;
+    let selectedDebtProduct = null;
+    let editingCartonId = null;
+    let dateFilter = { type: 'all', start: null, end: null };
+
+    document.getElementById('searchInput').disabled = false;
+    document.getElementById('statusIndicator').classList.add('status-online');
+    document.getElementById('loader').style.display = 'block';
+
+    let loadedCount = 0;
+    const checkLoad = () => { loadedCount++; if(loadedCount>=3) { document.getElementById('loader').style.display = 'none'; render(); } };
+
+    onSnapshot(productsColl, (snapshot) => { products = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); checkLoad(); });
+    onSnapshot(query(expensesColl, orderBy('date', 'desc')), (snapshot) => { expenses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); checkLoad(); });
+    onSnapshot(query(cartonsColl, orderBy('dateAdded', 'desc')), (snapshot) => { cartons = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); checkLoad(); });
+
+    function render() {
+        const container = document.getElementById('mainContainer');
+        container.innerHTML = '';
+        
+        document.getElementById('activeFilterIndicator').style.display = dateFilter.type !== 'all' ? 'block' : 'none';
+
+        // 1. القوائم المفلترة حسب التبويب
+        let list = [];
+        if(currentTab === 'available') list = products.filter(p => p.status === 'available');
+        else if(currentTab === 'sold') list = products.filter(p => p.status === 'sold');
+        else if(currentTab === 'debts') list = products.filter(p => p.status === 'sold' && p.remainingDebt > 0);
+        else if(currentTab === 'expenses') list = [...expenses];
+        else if(currentTab === 'cartons') list = [...cartons];
+
+        // 2. تطبيق فلتر التاريخ (الآن يتم تطبيقه على كل شيء)
+        list = applyDateFilter(list);
+
+        // 3. عرض الملخصات حسب التبويب
+        if(currentTab === 'available' || currentTab === 'sold' || currentTab === 'cartons') {
+            renderSummary(container); // الملخص العام الأزرق
+        }
+        
+        if(currentTab === 'debts') {
+            // ملخص الديون الخاص
+            const totalDebt = list.reduce((sum, item) => sum + (parseFloat(item.remainingDebt)||0), 0);
+            const periodText = dateFilter.type !== 'all' ? '(للفترة المحددة)' : '(الكلي)';
+            container.innerHTML += `
+            <div class="tab-summary">
+                <div class="tab-summary-title">مجموع الديون ${periodText}</div>
+                <div class="tab-summary-val text-red">${totalDebt.toLocaleString()}</div>
+            </div>`;
+        }
+
+        if(currentTab === 'expenses') {
+            // ملخص المصاريف الخاص
+            const totalExp = list.reduce((sum, item) => sum + (parseFloat(item.amount)||0), 0);
+            const periodText = dateFilter.type !== 'all' ? '(للفترة المحددة)' : '(الكلي)';
+            container.innerHTML += `
+            <div class="tab-summary">
+                <div class="tab-summary-title">مجموع المصاريف ${periodText}</div>
+                <div class="tab-summary-val text-red">${totalExp.toLocaleString()}</div>
+            </div>`;
+        }
+
+        // 4. تطبيق البحث
+        if(searchQuery && currentTab !== 'cartons') {
+            list = list.filter(item => {
+                if(item.name) return item.name.toLowerCase().includes(searchQuery.toLowerCase());
+                if(item.type) return item.type.includes(searchQuery); 
+                return false;
+            });
+        }
+
+        // 5. الترتيب
+        if(currentTab === 'available') list.sort((a,b) => b.dateAdded - a.dateAdded);
+        else if(currentTab === 'sold' || currentTab === 'debts') list.sort((a,b) => b.dateSold - a.dateSold);
+
+        if(list.length === 0) container.innerHTML += `<div style="text-align:center;padding:20px;color:#999">لا توجد بيانات تطابق الفلتر</div>`;
+        
+        list.forEach(item => {
+            if(currentTab === 'cartons') container.innerHTML += createCartonCard(item);
+            else if(currentTab === 'expenses') container.innerHTML += createExpenseCard(item);
+            else if(currentTab === 'debts') container.innerHTML += createDebtCard(item);
+            else container.innerHTML += createProductCard(item);
+        });
+    }
+
+    // ================== Image Preview ==================
+    window.previewImage = (input, previewId) => {
+        if(input.id.includes('Camera')) { document.getElementById(input.id.replace('Camera', 'Gallery')).value = ''; } 
+        else { document.getElementById(input.id.replace('Gallery', 'Camera')).value = ''; }
+
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = document.getElementById(previewId); img.src = e.target.result;
+                if(previewId === 'addImgPreview') document.getElementById('addImgPreviewContainer').classList.remove('hidden');
+            }
+            reader.readAsDataURL(input.files[0]);
+        }
+    };
+
+    // ================== Filter Logic ==================
+    window.openFilterModal = () => document.getElementById('filterModal').classList.add('open');
+    window.toggleCustomDate = () => {
+        const type = document.getElementById('filterType').value;
+        document.getElementById('customDateInputs').classList.toggle('hidden', type !== 'custom');
+    };
+    window.applyFilter = () => {
+        const type = document.getElementById('filterType').value;
+        dateFilter = { type: type, start: null, end: null };
+        if(type === 'custom') {
+            const start = document.getElementById('filterStart').value; const end = document.getElementById('filterEnd').value;
+            if(!start || !end) return alert('يرجى تحديد التاريخ');
+            dateFilter.start = new Date(start).setHours(0,0,0,0); dateFilter.end = new Date(end).setHours(23,59,59,999);
+        }
+        window.closeModal('filterModal'); render();
+    };
+
+    function applyDateFilter(list) {
+        if(dateFilter.type === 'all') return list;
+        const now = new Date(); now.setHours(0,0,0,0);
+        let dateField = 'dateAdded'; 
+        if(currentTab === 'sold' || currentTab === 'debts') dateField = 'dateSold';
+        if(currentTab === 'expenses') dateField = 'date';
+        return list.filter(item => {
+            if(!item[dateField]) return false;
+            const itemDate = new Date(item[dateField]); itemDate.setHours(0,0,0,0);
+            const itemTs = itemDate.getTime();
+            if(dateFilter.type === 'today') return itemTs === now.getTime();
+            if(dateFilter.type === 'month') return itemDate.getMonth() === now.getMonth() && itemDate.getFullYear() === now.getFullYear();
+            if(dateFilter.type === 'custom') return item[dateField] >= dateFilter.start && item[dateField] <= dateFilter.end;
+            return true;
+        });
+    }
+
+    // ================== Expense Delete (New) ==================
+    window.deleteExpense = async (id) => {
+        if(confirm('هل أنت متأكد من حذف هذا المصروف؟')) {
+            await deleteDoc(doc(db, "expenses", id));
+        }
+    };
+
+    // ================== Summary (Updated) ==================
+    function renderSummary(container) {
+        // حساب الملخص العام باستخدام القوائم *المفلترة* ليكون تفاعلياً
+        const filteredProducts = applyDateFilter(products);
+        const filteredCartons = applyDateFilter(cartons);
+        const filteredExpenses = applyDateFilter(expenses);
+        
+        let totalSales = 0, totalSingleCost = 0, totalCartonCost = 0;
+        const totalExpenses = filteredExpenses.reduce((s, e) => s + parseFloat(e.amount), 0);
+        
+        filteredProducts.filter(p => p.status === 'sold').forEach(p => {
+            totalSales += parseFloat(p.soldPrice) || 0;
+            if(p.costType === 'single') totalSingleCost += parseFloat(p.cost) || 0;
+        });
+        filteredCartons.forEach(c => totalCartonCost += parseFloat(c.cost) || 0);
+
+        const gross = totalSales - totalSingleCost - totalCartonCost;
+        const net = gross - totalExpenses;
+        let title = "الصافي الحقيقي";
+        if(dateFilter.type !== 'all') title += " (للفترة)";
+
+        container.innerHTML += `
+        <div class="summary-box">
+            <div class="stat-val">${net.toLocaleString()}</div>
+            <div class="stat-label">${title}</div>
+            <div class="summary-grid">
+                <div><div class="stat-val" style="font-size:14px">${totalSales.toLocaleString()}</div><div class="stat-label">مبيعات</div></div>
+                <div><div class="stat-val" style="font-size:14px;color:#ffcdd2">${(totalCartonCost + totalSingleCost).toLocaleString()}</div><div class="stat-label">كلفة</div></div>
+                <div><div class="stat-val" style="font-size:14px;color:#ffcdd2">${totalExpenses.toLocaleString()}</div><div class="stat-label">مصاريف</div></div>
+            </div>
+        </div>`;
+    }
+
+    // ================== Helpers & Cards ==================
+    function createExpenseCard(e) { 
+        return `
+        <div class="card expense-card">
+            <div>
+                <div class="prod-name">${e.type}</div>
+                <div class="prod-meta">${e.note||''}</div>
+                <div class="prod-meta">${new Date(e.date).toLocaleDateString()}</div>
+            </div>
+            <div style="display:flex; align-items:center; gap:10px;">
+                <div class="expense-amount">-${e.amount}</div>
+                <button class="btn-trash" onclick="window.deleteExpense('${e.id}')">🗑️</button>
+            </div>
+        </div>`; 
+    }
+
+    function createProductCard(p) {
+        const imgSrc = p.image || 'https://via.placeholder.com/80?text=No+Img';
+        const isSold = p.status === 'sold';
+        let sourceInfo = "مفرد";
+        if(p.costType === 'carton') {
+            const crt = cartons.find(c => c.id === p.cartonId);
+            sourceInfo = crt ? `📦 ${crt.number}` : "صندوق (محذوف)";
+        }
+        let footer = isSold ? 
+            `<div class="prod-meta">بيع: <b style="color:var(--accent)">${p.soldPrice}</b> ${p.remainingDebt > 0 ? `<span class="debt-badge">دين: ${p.remainingDebt}</span>` : ''}</div>` : 
+            `<div class="prod-meta">متوقع: <b>${p.expectedPrice}</b></div>`;
+        const btn = !isSold ? `<button class="btn-action btn-sell" onclick="window.openSellModal(event, '${p.id}')">بيع</button>` : '';
+
+        return `
+        <div class="card product-card" onclick="window.openDetailsModal('${p.id}')">
+            <img src="${imgSrc}" class="prod-img" onclick="event.stopPropagation(); window.openImageModal('${imgSrc}')">
+            <div class="prod-details">
+                <div class="prod-name">${p.name}</div>
+                <div class="prod-meta">${sourceInfo}</div>
+                ${footer}
+            </div>
+            ${btn}
+        </div>`;
+    }
+    
+    // ... (بقية دوال الكروت createCartonCard, createDebtCard - نفس V12)
+    function createCartonCard(c) {
+        const items = products.filter(p => p.cartonId === c.id);
+        const soldItems = items.filter(p => p.status === 'sold');
+        const totalSales = soldItems.reduce((sum, p) => sum + (parseFloat(p.soldPrice)||0), 0);
+        const profit = totalSales - c.cost;
+        const color = profit >= 0 ? 'green' : 'red';
+        return `
+        <div class="card carton-card" onclick="window.openCartonManage('${c.id}')">
+            <div style="display:flex; justify-content:space-between">
+                <div class="prod-name">${c.number}</div>
+                <div style="font-weight:bold; color:var(--primary)">${c.cost}</div>
+            </div>
+            <div class="prod-meta">${c.note || ''}</div>
+            <div class="carton-stat">
+                <span>قطع: ${items.length} (مباع: ${soldItems.length})</span>
+                <span style="color:${color}; font-weight:bold">ربح: ${profit}</span>
+            </div>
+        </div>`;
+    }
+    function createDebtCard(p) { return `<div class="card"><div style="display:flex; justify-content:space-between"><div><div class="prod-name">${p.customerName||'زبون'}</div><div class="prod-meta">اشترى: ${p.name}</div><div class="prod-meta">تاريخ: ${new Date(p.dateSold).toLocaleDateString()}</div></div><div style="text-align:left"><div style="color:red;font-weight:bold;font-size:18px">${p.remainingDebt}</div><button class="btn-action btn-pay" onclick="window.openPayDebt('${p.id}')">تسديد</button></div></div></div>`; }
+
+    // ... (بقية الوظائف الأساسية - نفس V12)
+    window.openImageModal = (src) => { if(src.includes('placeholder')) return; document.getElementById('fullImageDisplay').src = src; document.getElementById('imageModal').classList.add('open'); };
+    const compress = (file, cb) => {
+         if (!file) return cb(null);
+         const reader = new FileReader(); reader.readAsDataURL(file);
+         reader.onload = e => { const img = new Image(); img.src = e.target.result; img.onload = () => { const canvas = document.createElement('canvas'); const scale = 600 / img.width; canvas.width = 600; canvas.height = img.height * scale; canvas.getContext("2d").drawImage(img,0,0,canvas.width,canvas.height); cb(canvas.toDataURL("image/jpeg",0.7)); } }
+    };
+    
+    // Carton Manage
+    window.openCartonManage = (id) => {
+        editingCartonId = id; const c = cartons.find(x => x.id === id); document.getElementById('cmTitle').innerText = `إدارة الصندوق: ${c.number}`; document.getElementById('editCName').value = c.number; document.getElementById('editCCost').value = c.cost; document.getElementById('editCNote').value = c.note || ''; document.getElementById('cartonManageModal').classList.add('open');
+    };
+    document.getElementById('updateCartonBtn').onclick = async () => { await updateDoc(doc(db, "cartons", editingCartonId), { number: document.getElementById('editCName').value, cost: document.getElementById('editCCost').value, note: document.getElementById('editCNote').value }); window.closeModal('cartonManageModal'); };
+    document.getElementById('deleteCartonBtn').onclick = async () => { const linkedItems = products.filter(p => p.cartonId === editingCartonId); if(linkedItems.length > 0) { if(!confirm(`تحذير: يوجد ${linkedItems.length} قطع في هذا الصندوق. هل أنت متأكد؟`)) return; } else { if(!confirm('حذف الصندوق نهائياً؟')) return; } await deleteDoc(doc(db, "cartons", editingCartonId)); window.closeModal('cartonManageModal'); };
+    window.viewCartonContents = () => { window.closeModal('cartonManageModal'); const c = cartons.find(x => x.id === editingCartonId); const items = products.filter(p => p.cartonId === editingCartonId); const soldCount = items.filter(p => p.status === 'sold').length; document.getElementById('ccTitle').innerText = `محتويات ${c.number}`; document.getElementById('ccSummary').innerText = `الكلي: ${items.length} | المباع: ${soldCount}`; const listContainer = document.getElementById('ccItemsList'); listContainer.innerHTML = ''; if(items.length === 0) listContainer.innerHTML = '<p style="text-align:center">فارغ</p>'; items.forEach(p => listContainer.innerHTML += createProductCard(p)); document.getElementById('cartonContentsModal').classList.add('open'); };
+
+    // Common
+    window.closeModal = (id) => document.getElementById(id).classList.remove('open');
+    window.openAddModal = () => { 
+        document.getElementById('pImgInputCamera').value = ''; document.getElementById('pImgInputGallery').value = ''; document.getElementById('addImgPreviewContainer').classList.add('hidden'); document.getElementById('addImgPreview').src = '';
+        const select = document.getElementById('pCartonSelect'); select.innerHTML = '<option value="">-- اختر صندوق --</option>'; cartons.forEach(c => { select.innerHTML += `<option value="${c.id}" data-price="${c.cost}">${c.number}</option>`; }); document.getElementById('addModal').classList.add('open'); 
+    };
+    window.openAddCartonModal = () => document.getElementById('addCartonModal').classList.add('open');
+    window.toggleCostInputs = (mode) => { const type = document.getElementById(mode==='add'?'costType':'editCostType').value; const single = document.getElementById(mode==='add'?'singleCostInput':'editSingleCostDiv'); const carton = document.getElementById(mode==='add'?'cartonCostInput':'editCartonCostDiv'); if(type==='single') { if(single) single.classList.remove('hidden'); if(carton) carton.classList.add('hidden'); } else { if(single) single.classList.add('hidden'); if(carton) carton.classList.remove('hidden'); } };
+    window.updateCartonPriceDisplay = () => { const select = document.getElementById('pCartonSelect'); const price = select.options[select.selectedIndex].getAttribute('data-price') || 0; document.getElementById('pCartonPriceDisplay').innerText = price; };
+
+    // Main Actions
+    document.getElementById('saveBtn').onclick = () => { 
+        const file = document.getElementById('pImgInputCamera').files[0] || document.getElementById('pImgInputGallery').files[0];
+        document.getElementById('saveBtn').innerText = "جاري الحفظ..."; 
+        compress(file, async (img) => { 
+            const type = document.getElementById('costType').value; 
+            let data = { name: document.getElementById('pName').value || 'منتج', costType: type, expectedPrice: document.getElementById('pExpectedPrice').value, image: img, status: 'available', dateAdded: Date.now() }; 
+            if(type === 'single') { data.cost = document.getElementById('pCost').value; } else { data.cartonId = document.getElementById('pCartonSelect').value; if(!data.cartonId) return alert('اختر الصندوق'); } 
+            await addDoc(productsColl, data); window.closeModal('addModal'); document.getElementById('saveBtn').innerText = "حفظ"; 
+        }); 
+    };
+    document.getElementById('saveCartonBtn').onclick = async () => { const num = document.getElementById('cName').value; const cost = document.getElementById('cCost').value; if(!num || !cost) return alert('بيانات ناقصة'); await addDoc(cartonsColl, { number: num, cost: cost, note: document.getElementById('cNote').value, dateAdded: Date.now() }); window.closeModal('addCartonModal'); document.getElementById('tabCartons').click(); };
+    window.openDetailsModal = (id) => { editingProductId = id; const p = products.find(x => x.id === id); if(!p) return; document.getElementById('editName').value = p.name; document.getElementById('editImgPreview').src = p.image || ''; document.getElementById('editExpectedPrice').value = p.expectedPrice; document.getElementById('editCostType').value = p.costType; if(p.costType === 'single') { document.getElementById('editSingleCostDiv').classList.remove('hidden'); document.getElementById('editCost').value = p.cost; } else { document.getElementById('editSingleCostDiv').classList.add('hidden'); } if(p.status === 'sold') { document.getElementById('editSoldPriceDiv').classList.remove('hidden'); document.getElementById('editSoldPrice').value = p.soldPrice; document.getElementById('displayDateSold').innerText = new Date(p.dateSold).toLocaleString(); } else { document.getElementById('editSoldPriceDiv').classList.add('hidden'); document.getElementById('displayDateSold').innerText = '-'; } document.getElementById('displayDateAdded').innerText = new Date(p.dateAdded).toLocaleString(); document.getElementById('editImgInputCamera').value = ''; document.getElementById('editImgInputGallery').value = ''; document.getElementById('detailsModal').classList.add('open'); };
+    document.getElementById('editBtn').onclick = () => { 
+        const file = document.getElementById('editImgInputCamera').files[0] || document.getElementById('editImgInputGallery').files[0];
+        document.getElementById('editBtn').innerText = "جاري التحديث..."; compress(file, async (img) => { let data = { name: document.getElementById('editName').value, expectedPrice: document.getElementById('editExpectedPrice').value }; if(img) data.image = img; if(document.getElementById('editCostType').value === 'single') data.cost = document.getElementById('editCost').value; if(!document.getElementById('editSoldPriceDiv').classList.contains('hidden')) data.soldPrice = document.getElementById('editSoldPrice').value; await updateDoc(doc(db, "products", editingProductId), data); window.closeModal('detailsModal'); document.getElementById('editBtn').innerText = "حفظ التعديلات"; }); 
+    };
+    document.getElementById('deleteBtn').onclick = async () => { if(confirm('حذف نهائي؟')) { await deleteDoc(doc(db, "products", editingProductId)); window.closeModal('detailsModal'); } };
+    window.openSellModal = (e, id) => { e.stopPropagation(); selectedProductId = id; const p = products.find(x => x.id === id); document.getElementById('sellItemName').innerText = p.name; document.getElementById('finalPrice').value = p.expectedPrice; document.getElementById('isDebtCheck').checked = false; document.getElementById('debtFields').classList.add('hidden'); document.getElementById('amountPaid').value = ''; document.getElementById('customerName').value = ''; document.getElementById('sellModal').classList.add('open'); };
+    document.getElementById('isDebtCheck').onchange = (e) => document.getElementById('debtFields').classList.toggle('hidden', !e.target.checked);
+    document.getElementById('finalPrice').oninput = updateDebtCalc; document.getElementById('amountPaid').oninput = updateDebtCalc;
+    function updateDebtCalc() { document.getElementById('debtCalc').innerText = (parseFloat(document.getElementById('finalPrice').value)||0) - (parseFloat(document.getElementById('amountPaid').value)||0); }
+    document.getElementById('confirmSellBtn').onclick = async () => { const price = document.getElementById('finalPrice').value; if(!price) return alert('أدخل السعر'); let data = { status: 'sold', soldPrice: price, dateSold: Date.now(), remainingDebt: 0 }; if(document.getElementById('isDebtCheck').checked) { const paid = document.getElementById('amountPaid').value; const cust = document.getElementById('customerName').value; if(!paid || !cust) return alert('أكمل بيانات الدين'); data.amountPaid = paid; data.customerName = cust; data.customerPhone = document.getElementById('customerPhone').value; data.remainingDebt = price - paid; } await updateDoc(doc(db, "products", selectedProductId), data); window.closeModal('sellModal'); };
+    window.openExpenseModal = () => { document.getElementById('expAmount').value=''; document.getElementById('expNote').value=''; document.getElementById('expenseModal').classList.add('open'); };
+    document.getElementById('saveExpBtn').onclick = async () => { const amt = document.getElementById('expAmount').value; if(!amt) return; await addDoc(expensesColl, { type: document.getElementById('expType').value, amount: amt, note: document.getElementById('expNote').value, date: Date.now() }); window.closeModal('expenseModal'); };
+    window.openPayDebt = (id) => { selectedDebtProduct = products.find(p => p.id === id); document.getElementById('payDebtCustomer').innerText = selectedDebtProduct.customerName; document.getElementById('payDebtAmount').innerText = selectedDebtProduct.remainingDebt; document.getElementById('payAmount').value = ''; document.getElementById('payDebtModal').classList.add('open'); };
+    document.getElementById('confirmPayBtn').onclick = async () => { const pay = parseFloat(document.getElementById('payAmount').value); if(!pay) return; const newDebt = selectedDebtProduct.remainingDebt - pay; if(newDebt < 0) return alert('المبلغ أكبر من الدين'); await updateDoc(doc(db, "products", selectedDebtProduct.id), { remainingDebt: newDebt, amountPaid: (parseFloat(selectedDebtProduct.amountPaid)||0) + pay }); window.closeModal('payDebtModal'); };
+
+    const tabs = ['tabCartons', 'tabAvailable', 'tabSold', 'tabDebts', 'tabExpenses'];
+    tabs.forEach(t => document.getElementById(t).onclick = () => { currentTab = t.replace('tab', '').toLowerCase(); tabs.forEach(x => document.getElementById(x).classList.remove('active')); document.getElementById(t).classList.add('active'); render(); });
+    document.getElementById('searchInput').onkeyup = (e) => { searchQuery = e.target.value; render(); };
+</script>
+</body>
+</html>
