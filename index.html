@@ -8,7 +8,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="application-name" content="متجر النصر">
     <meta name="theme-color" content="#00695c">
-    <title>متجر النصر - V15 (الملاحظات)</title>
+    <title>متجر النصر - V16 (التصنيفات)</title>
     <style>
         :root { --primary: #00695c; --accent: #00897b; --bg: #f5f5f5; --text: #333; --red: #c62828; --green: #2e7d32; --orange: #ef6c00; --grey: #616161; }
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding-bottom: 80px; }
@@ -60,6 +60,7 @@
         .prod-details { flex: 1; pointer-events: none; }
         .prod-name { font-weight: bold; font-size: 16px; margin-bottom: 4px; }
         .prod-meta { font-size: 12px; color: #666; margin-bottom: 2px; }
+        .category-badge { font-size: 10px; background: #e0f7fa; color: #006064; padding: 2px 6px; border-radius: 4px; display: inline-block; margin-left: 5px; }
         .debt-badge { background: #ffebee; color: #c62828; padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; display: inline-block; margin-top: 5px;}
         .carton-card { border-right: 4px solid var(--orange); cursor: pointer; }
         .carton-stat { display: flex; justify-content: space-between; font-size: 12px; margin-top: 8px; background: #fff3e0; padding: 5px; border-radius: 4px;}
@@ -166,6 +167,20 @@
             </div>
         </div>
         <div class="form-group"> <label>اسم المنتج</label> <input type="text" id="pName"> </div>
+        
+        <div class="form-group">
+            <label>التصنيف</label>
+            <select id="pCategory">
+                <option value="كهربائيات">كهربائيات</option>
+                <option value="الكترونيات">الكترونيات</option>
+                <option value="تجميل">تجميل</option>
+                <option value="ملابس">ملابس</option>
+                <option value="دريسات">دريسات</option>
+                <option value="ادوات_انشائية">أدوات إنشائية</option>
+                <option value="اخرى">أخرى</option>
+            </select>
+        </div>
+
         <div class="form-group"> <label>المصدر</label> <select id="costType" onchange="toggleCostInputs('add')"> <option value="single">مفرد</option> <option value="carton">صندوق</option> </select> </div>
         <div id="singleCostInput" class="form-group"> <label>سعر الشراء المفرد</label> <input type="number" id="pCost"> </div>
         <div id="cartonCostInput" class="form-group hidden">
@@ -194,6 +209,20 @@
             </div>
         </div>
         <div class="form-group"> <label>الاسم</label> <input type="text" id="editName"> </div>
+        
+        <div class="form-group">
+            <label>التصنيف</label>
+            <select id="editCategory">
+                <option value="كهربائيات">كهربائيات</option>
+                <option value="الكترونيات">الكترونيات</option>
+                <option value="تجميل">تجميل</option>
+                <option value="ملابس">ملابس</option>
+                <option value="دريسات">دريسات</option>
+                <option value="ادوات_انشائية">أدوات إنشائية</option>
+                <option value="اخرى">أخرى</option>
+            </select>
+        </div>
+
         <div class="form-group"> <label>المصدر</label> <select id="editCostType" disabled> <option value="single">مفرد</option> <option value="carton">صندوق</option> </select> </div>
         <div id="editSingleCostDiv" class="form-group"> <label>سعر الشراء</label> <input type="number" id="editCost"> </div>
         <div class="row form-group">
@@ -346,7 +375,7 @@
     // ================== منطق كلمة المرور ==================
     window.checkPass = () => {
         const pass = document.getElementById('passInput').value;
-        const correctPass = "1234"; 
+        const correctPass = "1234"; // كلمة السر
         
         if(pass === correctPass) {
             document.getElementById('loginOverlay').style.top = "-100%";
@@ -512,6 +541,8 @@
 
     // --- Cards ---
     function createExpenseCard(e) { return `<div class="card expense-card"><div><div class="prod-name">${e.type}</div><div class="prod-meta">${e.note||''}</div><div class="prod-meta">${new Date(e.date).toLocaleDateString()}</div></div><div style="display:flex;align-items:center;gap:10px;"><div class="expense-amount">-${e.amount}</div><button class="btn-trash" onclick="window.deleteExpense('${e.id}')">🗑️</button></div></div>`; }
+    
+    // تعديل كرت المنتج لإظهار التصنيف
     function createProductCard(p) {
         const imgSrc = p.image || 'https://via.placeholder.com/80?text=No+Img';
         const isSold = p.status === 'sold';
@@ -519,8 +550,21 @@
         if(p.costType === 'carton') { const crt = cartons.find(c => c.id === p.cartonId); sourceInfo = crt ? `📦 ${crt.number}` : "صندوق (محذوف)"; }
         let footer = isSold ? `<div class="prod-meta">بيع: <b style="color:var(--accent)">${p.soldPrice}</b> ${p.remainingDebt > 0 ? `<span class="debt-badge">دين: ${p.remainingDebt}</span>` : ''}</div>` : `<div class="prod-meta">متوقع: <b>${p.expectedPrice}</b></div>`;
         const btn = !isSold ? `<button class="btn-action btn-sell" onclick="window.openSellModal(event, '${p.id}')">بيع</button>` : '';
-        return `<div class="card product-card" onclick="window.openDetailsModal('${p.id}')"><img src="${imgSrc}" class="prod-img" onclick="event.stopPropagation(); window.openImageModal('${imgSrc}')"><div class="prod-details"><div class="prod-name">${p.name}</div><div class="prod-meta">${sourceInfo}</div>${footer}</div>${btn}</div>`;
+        
+        // عرض التصنيف
+        const categoryBadge = p.category ? `<span class="category-badge">${p.category}</span>` : '';
+
+        return `<div class="card product-card" onclick="window.openDetailsModal('${p.id}')">
+            <img src="${imgSrc}" class="prod-img" onclick="event.stopPropagation(); window.openImageModal('${imgSrc}')">
+            <div class="prod-details">
+                <div class="prod-name">${p.name} ${categoryBadge}</div>
+                <div class="prod-meta">${sourceInfo}</div>
+                ${footer}
+            </div>
+            ${btn}
+        </div>`;
     }
+    
     function createCartonCard(c) {
         const items = products.filter(p => p.cartonId === c.id);
         const soldItems = items.filter(p => p.status === 'sold');
@@ -536,8 +580,8 @@
     window.closeModal = (id) => document.getElementById(id).classList.remove('open');
     window.openAddModal = () => { 
         document.getElementById('pImgInputCamera').value=''; document.getElementById('pImgInputGallery').value=''; document.getElementById('addImgPreviewContainer').classList.add('hidden'); document.getElementById('addImgPreview').src=''; 
-        // تفريغ الملاحظات عند الإضافة
         document.getElementById('pNote').value = '';
+        document.getElementById('pCategory').value = 'اخرى'; // إعادة تعيين التصنيف
         const select = document.getElementById('pCartonSelect'); select.innerHTML = '<option value="">-- اختر صندوق --</option>'; cartons.forEach(c => { select.innerHTML += `<option value="${c.id}" data-price="${c.cost}">${c.number}</option>`; }); document.getElementById('addModal').classList.add('open'); 
     };
     window.openAddCartonModal = () => document.getElementById('addCartonModal').classList.add('open');
@@ -557,7 +601,8 @@
                 image: img, 
                 status: 'available', 
                 dateAdded: Date.now(),
-                note: document.getElementById('pNote').value // حفظ الملاحظة الجديدة
+                note: document.getElementById('pNote').value,
+                category: document.getElementById('pCategory').value || 'اخرى' // حفظ التصنيف
             }; 
             if(type === 'single') { data.cost = document.getElementById('pCost').value; } else { data.cartonId = document.getElementById('pCartonSelect').value; if(!data.cartonId) return alert('اختر الصندوق'); } 
             await addDoc(productsColl, data); window.closeModal('addModal'); document.getElementById('saveBtn').innerText = "حفظ"; 
@@ -573,9 +618,8 @@
         document.getElementById('editImgPreview').src = p.image || ''; 
         document.getElementById('editExpectedPrice').value = p.expectedPrice; 
         document.getElementById('editCostType').value = p.costType; 
-        
-        // جلب الملاحظة القديمة
         document.getElementById('editProductNote').value = p.note || '';
+        document.getElementById('editCategory').value = p.category || 'اخرى'; // عرض التصنيف الحالي
 
         if(p.costType === 'single') { document.getElementById('editSingleCostDiv').classList.remove('hidden'); document.getElementById('editCost').value = p.cost; } else { document.getElementById('editSingleCostDiv').classList.add('hidden'); } 
         if(p.status === 'sold') { document.getElementById('editSoldPriceDiv').classList.remove('hidden'); document.getElementById('editSoldPrice').value = p.soldPrice; document.getElementById('displayDateSold').innerText = new Date(p.dateSold).toLocaleString(); } else { document.getElementById('editSoldPriceDiv').classList.add('hidden'); document.getElementById('displayDateSold').innerText = '-'; } 
@@ -593,7 +637,8 @@
             let data = { 
                 name: document.getElementById('editName').value, 
                 expectedPrice: document.getElementById('editExpectedPrice').value,
-                note: document.getElementById('editProductNote').value // تحديث الملاحظة
+                note: document.getElementById('editProductNote').value,
+                category: document.getElementById('editCategory').value // تحديث التصنيف
             }; 
             if(img) data.image = img; 
             if(document.getElementById('editCostType').value === 'single') data.cost = document.getElementById('editCost').value; 
