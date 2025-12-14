@@ -8,12 +8,12 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="application-name" content="متجر النصر">
     <meta name="theme-color" content="#00695c">
-    <title>متجر النصر - V14 (محمي)</title>
+    <title>متجر النصر - V15 (الملاحظات)</title>
     <style>
         :root { --primary: #00695c; --accent: #00897b; --bg: #f5f5f5; --text: #333; --red: #c62828; --green: #2e7d32; --orange: #ef6c00; --grey: #616161; }
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding-bottom: 80px; }
         
-        /* شاشة القفل (جديد) */
+        /* شاشة القفل */
         #loginOverlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: var(--primary); z-index: 10000;
@@ -45,7 +45,7 @@
         .spinner { border: 4px solid #f3f3f3; border-top: 4px solid var(--primary); border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin: 0 auto; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-        /* Custom Camera Buttons Styles */
+        /* Camera Buttons */
         .camera-buttons-container { display: flex; gap: 10px; }
         .custom-file-label { flex: 1; padding: 12px; border-radius: 8px; color: white; font-weight: bold; text-align: center; cursor: pointer; transition: 0.2s; display: flex; align-items: center; justify-content: center; gap: 5px; }
         .btn-camera { background: var(--accent); }
@@ -93,7 +93,8 @@
         
         .form-group { margin-bottom: 15px; }
         label { display: block; margin-bottom: 5px; font-size: 13px; font-weight: bold; }
-        input, select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
+        input, select, textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-family: inherit; }
+        textarea { resize: vertical; }
         .btn-submit { background: var(--primary); color: white; border: none; padding: 12px; width: 100%; border-radius: 8px; font-weight: bold; font-size: 16px; margin-top: 10px; cursor: pointer; width: 100%; }
         .btn-delete { background: var(--red); color: white; margin-top: 10px; }
         .btn-orange { background: var(--orange); color: white; margin-top: 10px; }
@@ -172,8 +173,43 @@
             <p style="font-size:11px; color:#666; margin-top:5px">سعر الصندوق: <span id="pCartonPriceDisplay">0</span></p>
         </div>
         <div class="form-group"> <label>سعر البيع المتوقع</label> <input type="number" id="pExpectedPrice"> </div>
+        <div class="form-group"> <label>ملاحظات (اختياري)</label> <textarea id="pNote" rows="2" placeholder="مثلاً: لون أحمر، مقاس كبير..."></textarea> </div>
+        
         <button class="btn-submit" id="saveBtn">حفظ</button>
         <button class="btn-submit btn-close" onclick="window.closeModal('addModal')">إلغاء</button>
+    </div>
+</div>
+
+<div class="modal" id="detailsModal">
+    <div class="modal-content">
+        <h3 style="margin-top:0; text-align:center">تعديل التفاصيل</h3>
+        <img id="editImgPreview" class="img-preview" src="" onclick="openImageModal(this.src)">
+        <div class="form-group">
+            <label>تغيير الصورة</label>
+            <div class="camera-buttons-container">
+                <label for="editImgInputCamera" class="custom-file-label btn-camera" style="font-size:12px; padding:8px;">📷 كاميرا</label>
+                <input type="file" id="editImgInputCamera" accept="image/*" capture="environment" onchange="previewImage(this, 'editImgPreview')">
+                <label for="editImgInputGallery" class="custom-file-label btn-gallery" style="font-size:12px; padding:8px;">🖼️ استوديو</label>
+                <input type="file" id="editImgInputGallery" accept="image/*" onchange="previewImage(this, 'editImgPreview')">
+            </div>
+        </div>
+        <div class="form-group"> <label>الاسم</label> <input type="text" id="editName"> </div>
+        <div class="form-group"> <label>المصدر</label> <select id="editCostType" disabled> <option value="single">مفرد</option> <option value="carton">صندوق</option> </select> </div>
+        <div id="editSingleCostDiv" class="form-group"> <label>سعر الشراء</label> <input type="number" id="editCost"> </div>
+        <div class="row form-group">
+            <div style="flex:1"> <label>بيع متوقع</label> <input type="number" id="editExpectedPrice"> </div>
+            <div style="flex:1" id="editSoldPriceDiv" class="hidden"> <label>بيع فعلي</label> <input type="number" id="editSoldPrice"> </div>
+        </div>
+        
+        <div class="form-group"> <label>ملاحظات</label> <textarea id="editProductNote" rows="3"></textarea> </div>
+
+        <div style="margin:10px 0; border-top:1px solid #eee; padding-top:10px;">
+            <div class="date-badge">📅 إضافة: <span id="displayDateAdded">-</span></div>
+            <div class="date-badge" id="displayDateSoldDiv">💰 بيع: <span id="displayDateSold">-</span></div>
+        </div>
+        <button class="btn-submit" id="editBtn">حفظ التعديلات</button>
+        <button class="btn-submit btn-delete" id="deleteBtn">حذف المنتج</button>
+        <button class="btn-submit btn-close" onclick="window.closeModal('detailsModal')">إغلاق</button>
     </div>
 </div>
 
@@ -263,36 +299,6 @@
     </div>
 </div>
 
-<div class="modal" id="detailsModal">
-    <div class="modal-content">
-        <h3 style="margin-top:0; text-align:center">تعديل التفاصيل</h3>
-        <img id="editImgPreview" class="img-preview" src="" onclick="openImageModal(this.src)">
-        <div class="form-group">
-            <label>تغيير الصورة</label>
-            <div class="camera-buttons-container">
-                <label for="editImgInputCamera" class="custom-file-label btn-camera" style="font-size:12px; padding:8px;">📷 كاميرا</label>
-                <input type="file" id="editImgInputCamera" accept="image/*" capture="environment" onchange="previewImage(this, 'editImgPreview')">
-                <label for="editImgInputGallery" class="custom-file-label btn-gallery" style="font-size:12px; padding:8px;">🖼️ استوديو</label>
-                <input type="file" id="editImgInputGallery" accept="image/*" onchange="previewImage(this, 'editImgPreview')">
-            </div>
-        </div>
-        <div class="form-group"> <label>الاسم</label> <input type="text" id="editName"> </div>
-        <div class="form-group"> <label>المصدر</label> <select id="editCostType" disabled> <option value="single">مفرد</option> <option value="carton">صندوق</option> </select> </div>
-        <div id="editSingleCostDiv" class="form-group"> <label>سعر الشراء</label> <input type="number" id="editCost"> </div>
-        <div class="row form-group">
-            <div style="flex:1"> <label>بيع متوقع</label> <input type="number" id="editExpectedPrice"> </div>
-            <div style="flex:1" id="editSoldPriceDiv" class="hidden"> <label>بيع فعلي</label> <input type="number" id="editSoldPrice"> </div>
-        </div>
-        <div style="margin:10px 0; border-top:1px solid #eee; padding-top:10px;">
-            <div class="date-badge">📅 إضافة: <span id="displayDateAdded">-</span></div>
-            <div class="date-badge" id="displayDateSoldDiv">💰 بيع: <span id="displayDateSold">-</span></div>
-        </div>
-        <button class="btn-submit" id="editBtn">حفظ التعديلات</button>
-        <button class="btn-submit btn-delete" id="deleteBtn">حذف المنتج</button>
-        <button class="btn-submit btn-close" onclick="window.closeModal('detailsModal')">إغلاق</button>
-    </div>
-</div>
-
 <div class="modal" id="payDebtModal">
     <div class="modal-content">
         <h3>تسديد دين</h3>
@@ -337,26 +343,24 @@
     const expensesColl = collection(db, "expenses");
     const cartonsColl = collection(db, "cartons");
 
-    // ================== منطق كلمة المرور (جديد) ==================
-    // يتم تعريف الدالة خارج الـ module لتكون متاحة للـ HTML
+    // ================== منطق كلمة المرور ==================
     window.checkPass = () => {
         const pass = document.getElementById('passInput').value;
-        const correctPass = "2020"; // <<<< غيّر الرقم هذا لتغيير كلمة السر
+        const correctPass = "1234"; 
         
         if(pass === correctPass) {
-            document.getElementById('loginOverlay').style.top = "-100%"; // إخفاء الشاشة للأعلى
-            sessionStorage.setItem('isLoggedIn', 'true'); // حفظ الدخول مؤقتاً
+            document.getElementById('loginOverlay').style.top = "-100%";
+            sessionStorage.setItem('isLoggedIn', 'true');
         } else {
             document.getElementById('passError').style.display = 'block';
         }
     };
 
-    // التحقق عند فتح التطبيق
     if(sessionStorage.getItem('isLoggedIn') === 'true') {
         document.getElementById('loginOverlay').style.display = 'none';
     }
 
-    // ================== بقية كود التطبيق (نفس V13) ==================
+    // ================== بقية كود التطبيق ==================
     let products = [], expenses = [], cartons = [];
     let currentTab = 'available';
     let searchQuery = '';
@@ -530,7 +534,12 @@
     window.openImageModal = (src) => { if(src.includes('placeholder')) return; document.getElementById('fullImageDisplay').src = src; document.getElementById('imageModal').classList.add('open'); };
     const compress = (file, cb) => { if (!file) return cb(null); const reader = new FileReader(); reader.readAsDataURL(file); reader.onload = e => { const img = new Image(); img.src = e.target.result; img.onload = () => { const canvas = document.createElement('canvas'); const scale = 600 / img.width; canvas.width = 600; canvas.height = img.height * scale; canvas.getContext("2d").drawImage(img,0,0,canvas.width,canvas.height); cb(canvas.toDataURL("image/jpeg",0.7)); } } };
     window.closeModal = (id) => document.getElementById(id).classList.remove('open');
-    window.openAddModal = () => { document.getElementById('pImgInputCamera').value=''; document.getElementById('pImgInputGallery').value=''; document.getElementById('addImgPreviewContainer').classList.add('hidden'); document.getElementById('addImgPreview').src=''; const select = document.getElementById('pCartonSelect'); select.innerHTML = '<option value="">-- اختر صندوق --</option>'; cartons.forEach(c => { select.innerHTML += `<option value="${c.id}" data-price="${c.cost}">${c.number}</option>`; }); document.getElementById('addModal').classList.add('open'); };
+    window.openAddModal = () => { 
+        document.getElementById('pImgInputCamera').value=''; document.getElementById('pImgInputGallery').value=''; document.getElementById('addImgPreviewContainer').classList.add('hidden'); document.getElementById('addImgPreview').src=''; 
+        // تفريغ الملاحظات عند الإضافة
+        document.getElementById('pNote').value = '';
+        const select = document.getElementById('pCartonSelect'); select.innerHTML = '<option value="">-- اختر صندوق --</option>'; cartons.forEach(c => { select.innerHTML += `<option value="${c.id}" data-price="${c.cost}">${c.number}</option>`; }); document.getElementById('addModal').classList.add('open'); 
+    };
     window.openAddCartonModal = () => document.getElementById('addCartonModal').classList.add('open');
     window.toggleCostInputs = (mode) => { const type = document.getElementById(mode==='add'?'costType':'editCostType').value; const single = document.getElementById(mode==='add'?'singleCostInput':'editSingleCostDiv'); const carton = document.getElementById(mode==='add'?'cartonCostInput':'editCartonCostDiv'); if(type==='single') { if(single) single.classList.remove('hidden'); if(carton) carton.classList.add('hidden'); } else { if(single) single.classList.add('hidden'); if(carton) carton.classList.remove('hidden'); } };
     window.updateCartonPriceDisplay = () => { const select = document.getElementById('pCartonSelect'); const price = select.options[select.selectedIndex].getAttribute('data-price') || 0; document.getElementById('pCartonPriceDisplay').innerText = price; };
@@ -541,17 +550,60 @@
         document.getElementById('saveBtn').innerText = "جاري الحفظ..."; 
         compress(file, async (img) => { 
             const type = document.getElementById('costType').value; 
-            let data = { name: document.getElementById('pName').value || 'منتج', costType: type, expectedPrice: document.getElementById('pExpectedPrice').value, image: img, status: 'available', dateAdded: Date.now() }; 
+            let data = { 
+                name: document.getElementById('pName').value || 'منتج', 
+                costType: type, 
+                expectedPrice: document.getElementById('pExpectedPrice').value, 
+                image: img, 
+                status: 'available', 
+                dateAdded: Date.now(),
+                note: document.getElementById('pNote').value // حفظ الملاحظة الجديدة
+            }; 
             if(type === 'single') { data.cost = document.getElementById('pCost').value; } else { data.cartonId = document.getElementById('pCartonSelect').value; if(!data.cartonId) return alert('اختر الصندوق'); } 
             await addDoc(productsColl, data); window.closeModal('addModal'); document.getElementById('saveBtn').innerText = "حفظ"; 
         }); 
     };
     document.getElementById('saveCartonBtn').onclick = async () => { const num = document.getElementById('cName').value; const cost = document.getElementById('cCost').value; if(!num || !cost) return alert('بيانات ناقصة'); await addDoc(cartonsColl, { number: num, cost: cost, note: document.getElementById('cNote').value, dateAdded: Date.now() }); window.closeModal('addCartonModal'); document.getElementById('tabCartons').click(); };
-    window.openDetailsModal = (id) => { editingProductId = id; const p = products.find(x => x.id === id); if(!p) return; document.getElementById('editName').value = p.name; document.getElementById('editImgPreview').src = p.image || ''; document.getElementById('editExpectedPrice').value = p.expectedPrice; document.getElementById('editCostType').value = p.costType; if(p.costType === 'single') { document.getElementById('editSingleCostDiv').classList.remove('hidden'); document.getElementById('editCost').value = p.cost; } else { document.getElementById('editSingleCostDiv').classList.add('hidden'); } if(p.status === 'sold') { document.getElementById('editSoldPriceDiv').classList.remove('hidden'); document.getElementById('editSoldPrice').value = p.soldPrice; document.getElementById('displayDateSold').innerText = new Date(p.dateSold).toLocaleString(); } else { document.getElementById('editSoldPriceDiv').classList.add('hidden'); document.getElementById('displayDateSold').innerText = '-'; } document.getElementById('displayDateAdded').innerText = new Date(p.dateAdded).toLocaleString(); document.getElementById('editImgInputCamera').value = ''; document.getElementById('editImgInputGallery').value = ''; document.getElementById('detailsModal').classList.add('open'); };
+    
+    // --- Open Details (Updated) ---
+    window.openDetailsModal = (id) => { 
+        editingProductId = id; 
+        const p = products.find(x => x.id === id); if(!p) return; 
+        document.getElementById('editName').value = p.name; 
+        document.getElementById('editImgPreview').src = p.image || ''; 
+        document.getElementById('editExpectedPrice').value = p.expectedPrice; 
+        document.getElementById('editCostType').value = p.costType; 
+        
+        // جلب الملاحظة القديمة
+        document.getElementById('editProductNote').value = p.note || '';
+
+        if(p.costType === 'single') { document.getElementById('editSingleCostDiv').classList.remove('hidden'); document.getElementById('editCost').value = p.cost; } else { document.getElementById('editSingleCostDiv').classList.add('hidden'); } 
+        if(p.status === 'sold') { document.getElementById('editSoldPriceDiv').classList.remove('hidden'); document.getElementById('editSoldPrice').value = p.soldPrice; document.getElementById('displayDateSold').innerText = new Date(p.dateSold).toLocaleString(); } else { document.getElementById('editSoldPriceDiv').classList.add('hidden'); document.getElementById('displayDateSold').innerText = '-'; } 
+        document.getElementById('displayDateAdded').innerText = new Date(p.dateAdded).toLocaleString(); 
+        document.getElementById('editImgInputCamera').value = ''; 
+        document.getElementById('editImgInputGallery').value = ''; 
+        document.getElementById('detailsModal').classList.add('open'); 
+    };
+    
+    // --- Save Edits (Updated) ---
     document.getElementById('editBtn').onclick = () => { 
         const file = document.getElementById('editImgInputCamera').files[0] || document.getElementById('editImgInputGallery').files[0];
-        document.getElementById('editBtn').innerText = "جاري التحديث..."; compress(file, async (img) => { let data = { name: document.getElementById('editName').value, expectedPrice: document.getElementById('editExpectedPrice').value }; if(img) data.image = img; if(document.getElementById('editCostType').value === 'single') data.cost = document.getElementById('editCost').value; if(!document.getElementById('editSoldPriceDiv').classList.contains('hidden')) data.soldPrice = document.getElementById('editSoldPrice').value; await updateDoc(doc(db, "products", editingProductId), data); window.closeModal('detailsModal'); document.getElementById('editBtn').innerText = "حفظ التعديلات"; }); 
+        document.getElementById('editBtn').innerText = "جاري التحديث..."; 
+        compress(file, async (img) => { 
+            let data = { 
+                name: document.getElementById('editName').value, 
+                expectedPrice: document.getElementById('editExpectedPrice').value,
+                note: document.getElementById('editProductNote').value // تحديث الملاحظة
+            }; 
+            if(img) data.image = img; 
+            if(document.getElementById('editCostType').value === 'single') data.cost = document.getElementById('editCost').value; 
+            if(!document.getElementById('editSoldPriceDiv').classList.contains('hidden')) data.soldPrice = document.getElementById('editSoldPrice').value; 
+            await updateDoc(doc(db, "products", editingProductId), data); 
+            window.closeModal('detailsModal'); 
+            document.getElementById('editBtn').innerText = "حفظ التعديلات"; 
+        }); 
     };
+    
     document.getElementById('deleteBtn').onclick = async () => { if(confirm('حذف نهائي؟')) { await deleteDoc(doc(db, "products", editingProductId)); window.closeModal('detailsModal'); } };
     window.openSellModal = (e, id) => { e.stopPropagation(); selectedProductId = id; const p = products.find(x => x.id === id); document.getElementById('sellItemName').innerText = p.name; document.getElementById('finalPrice').value = p.expectedPrice; document.getElementById('isDebtCheck').checked = false; document.getElementById('debtFields').classList.add('hidden'); document.getElementById('amountPaid').value = ''; document.getElementById('customerName').value = ''; document.getElementById('sellModal').classList.add('open'); };
     document.getElementById('isDebtCheck').onchange = (e) => document.getElementById('debtFields').classList.toggle('hidden', !e.target.checked);
