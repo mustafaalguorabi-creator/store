@@ -9,7 +9,7 @@
     <meta name="application-name" content="متجر النصر">
     <meta name="theme-color" content="#00695c">
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
-    <title>متجر النصر - V23</title>
+    <title>متجر النصر - V24</title>
     <style>
         :root { --primary: #00695c; --accent: #00897b; --bg: #f5f5f5; --text: #333; --red: #c62828; --green: #2e7d32; --orange: #ef6c00; --grey: #616161; }
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding-bottom: 80px; overscroll-behavior-y: contain; }
@@ -33,18 +33,13 @@
         .tab.active { background: var(--accent); color: white; }
 
         .container { padding: 15px; max-width: 600px; margin: 0 auto; min-height: 80vh; }
-        #loader { text-align: center; padding: 20px; display: none; }
+        #loader { text-align: center; padding: 20px; display: none; } /* مخفي افتراضياً، يظهر بالـ JS */
         .spinner { border: 4px solid #f3f3f3; border-top: 4px solid var(--primary); border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin: 0 auto; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-        /* Infinite Scroll Sentinel & Loader */
-        #scrollSentinel { height: 20px; width: 100%; margin-top: 20px; }
-        .mini-spinner { border: 3px solid #f3f3f3; border-top: 3px solid var(--accent); border-radius: 50%; width: 20px; height: 20px; animation: spin 1s linear infinite; margin: 0 auto; display: none;}
+        .btn-load-more { display: block; width: 100%; padding: 15px; background: white; border: 1px solid #ddd; color: var(--primary); font-weight: bold; border-radius: 8px; margin-top: 10px; cursor: pointer; }
+        .btn-load-more:active { background: #eee; }
 
-        /* Back to Top Button */
-        .btn-back-to-top { position: fixed; bottom: 90px; right: 20px; background: rgba(0,0,0,0.6); color: white; border: none; width: 40px; height: 40px; border-radius: 50%; font-size: 20px; cursor: pointer; display: none; z-index: 400; }
-
-        /* Cards */
         .card { background: white; border-radius: 12px; padding: 12px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); position: relative; }
         .product-card { display: flex; gap: 10px; cursor: pointer; transition: 0.2s; }
         .product-card:active { transform: scale(0.98); background: #e0f2f1; }
@@ -123,6 +118,11 @@
         .status-badge { padding: 5px 10px; border-radius: 15px; font-size: 12px; font-weight: bold; color: white; }
         .status-sold { background: var(--green); }
         .status-available { background: var(--primary); }
+
+        /* Infinite Scroll */
+        #scrollSentinel { height: 20px; width: 100%; margin-top: 20px; }
+        .mini-spinner { border: 3px solid #f3f3f3; border-top: 3px solid var(--accent); border-radius: 50%; width: 20px; height: 20px; animation: spin 1s linear infinite; margin: 0 auto; display: none;}
+        .btn-back-to-top { position: fixed; bottom: 90px; right: 20px; background: rgba(0,0,0,0.6); color: white; border: none; width: 40px; height: 40px; border-radius: 50%; font-size: 20px; cursor: pointer; display: none; z-index: 400; }
 
     </style>
 </head>
@@ -318,7 +318,7 @@
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
-    // ================== Enable Offline Persistence (The Fix) ==================
+    // ================== Enable Offline Persistence ==================
     enableIndexedDbPersistence(db).catch((err) => {
         if (err.code == 'failed-precondition') { console.log('Persistence failed: Multiple tabs open'); } 
         else if (err.code == 'unimplemented') { console.log('Persistence not supported'); }
@@ -341,7 +341,7 @@
     let searchQuery = '';
     let dateFilter = { type: 'all', start: null, end: null };
     let categoryFilter = 'all';
-    let displayLimit = 20; // 20 items initial
+    let displayLimit = 20; 
     let fullFilteredList = [];
     let selectedProductId = null;
     let editingProductId = null;
@@ -350,14 +350,21 @@
 
     document.getElementById('searchInput').disabled = false;
     document.getElementById('statusIndicator').classList.add('status-online');
+    
+    // إخفاء مؤشر التحميل الرئيسي في البداية، سيظهر فقط إذا تأخر التحميل
     document.getElementById('loader').style.display = 'block';
 
-    let loadedCount = 0;
-    const checkLoad = () => { loadedCount++; if(loadedCount>=3) { document.getElementById('loader').style.display = 'none'; render(); } };
-
-    onSnapshot(productsColl, (snapshot) => { products = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); checkLoad(); });
-    onSnapshot(query(expensesColl, orderBy('date', 'desc')), (snapshot) => { expenses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); checkLoad(); });
-    onSnapshot(query(cartonsColl, orderBy('dateAdded', 'desc')), (snapshot) => { cartons = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); checkLoad(); });
+    // ================== V24: Instant Render Logic ==================
+    // بمجرد وصول أي تحديث للمنتجات (من الذاكرة أو النت)، نعرض فوراً
+    onSnapshot(productsColl, (snapshot) => { 
+        products = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); 
+        // عرض البيانات فوراً، لا تنتظر المصاريف
+        document.getElementById('loader').style.display = 'none'; 
+        render(); 
+    });
+    
+    onSnapshot(query(expensesColl, orderBy('date', 'desc')), (snapshot) => { expenses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); render(); });
+    onSnapshot(query(cartonsColl, orderBy('dateAdded', 'desc')), (snapshot) => { cartons = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })); render(); });
 
     // ================== Infinite Scroll Observer ==================
     const scrollSentinel = document.getElementById('scrollSentinel');
@@ -451,13 +458,9 @@
 
         const visibleList = fullFilteredList.slice(0, displayLimit);
         
-        // FIXED: Only show "No Data" if loadedCount >= 3 (loading finished)
+        // No Data logic
         if(visibleList.length === 0) {
-            if(loadedCount >= 3) {
-                html += `<div style="text-align:center;padding:20px;color:#999">لا توجد بيانات</div>`;
-            } else {
-                html += `<div style="text-align:center;padding:20px;color:#999">جاري التحميل...</div>`;
-            }
+             html += `<div style="text-align:center;padding:20px;color:#999">لا توجد بيانات</div>`;
         } else {
             html += visibleList.map(item => {
                 if(currentTab === 'cartons') return createCartonCard(item);
@@ -493,7 +496,7 @@
         
         let html = `<div class="tab-summary"><div class="tab-summary-title">مجموع الديون الكلي</div><div class="tab-summary-val text-red">${totalAllDebts.toLocaleString()}</div></div>`;
         if(Object.keys(customers).length === 0) { 
-             if(loadedCount >= 3) html += `<div style="text-align:center;padding:20px;color:#999">لا توجد ديون</div>`;
+             html += `<div style="text-align:center;padding:20px;color:#999">لا توجد ديون</div>`;
         }
         else {
             html += Object.keys(customers).map(name => {
@@ -582,7 +585,8 @@
     document.getElementById('confirmSellBtn').onclick = async () => { const price = document.getElementById('finalPrice').value; if(!price) return alert('أدخل السعر'); let data = { status: 'sold', soldPrice: price, dateSold: Date.now(), remainingDebt: 0 }; if(document.getElementById('isDebtCheck').checked) { const paid = document.getElementById('amountPaid').value; const cust = document.getElementById('customerName').value; if(!paid || !cust) return alert('أكمل بيانات الدين'); data.amountPaid = paid; data.customerName = cust; data.customerPhone = document.getElementById('customerPhone').value; data.remainingDebt = price - paid; } await updateDoc(doc(db, "products", selectedProductId), data); window.closeModal('sellModal'); };
     window.openExpenseModal = () => { document.getElementById('expAmount').value=''; document.getElementById('expNote').value=''; openModalWithHistory('expenseModal'); };
     document.getElementById('saveExpBtn').onclick = async () => { const amt = document.getElementById('expAmount').value; if(!amt) return; await addDoc(expensesColl, { type: document.getElementById('expType').value, amount: amt, note: document.getElementById('expNote').value, date: Date.now() }); window.closeModal('expenseModal'); };
-    document.getElementById('confirmPayBtn').onclick = async () => { const pay = parseFloat(document.getElementById('payAmount').value); if(!pay) return; const newDebt = selectedDebtProduct.remainingDebt - pay; if(newDebt < 0) return alert('المبلغ أكبر من الدين'); await updateDoc(doc(db, "products", selectedDebtProduct.id), { remainingDebt: newDebt, amountPaid: (parseFloat(selectedDebtProduct.amountPaid)||0) + pay }); window.closeModal('payDebtModal'); window.closeModal('customerDetailsModal'); };
+    
+    window.openCartonManage = (id) => { editingCartonId = id; const c = cartons.find(x => x.id === id); document.getElementById('cmTitle').innerText = `إدارة الصندوق: ${c.number}`; document.getElementById('editCName').value = c.number; document.getElementById('editCCost').value = c.cost; document.getElementById('editCNote').value = c.note || ''; openModalWithHistory('cartonManageModal'); };
     document.getElementById('updateCartonBtn').onclick = async () => { await updateDoc(doc(db, "cartons", editingCartonId), { number: document.getElementById('editCName').value, cost: document.getElementById('editCCost').value, note: document.getElementById('editCNote').value }); window.closeModal('cartonManageModal'); };
     document.getElementById('deleteCartonBtn').onclick = async () => { const linkedItems = products.filter(p => p.cartonId === editingCartonId); if(linkedItems.length > 0) { if(!confirm(`تحذير: يوجد ${linkedItems.length} قطع في هذا الصندوق. هل أنت متأكد؟`)) return; } else { if(!confirm('حذف الصندوق نهائياً؟')) return; } await deleteDoc(doc(db, "cartons", editingCartonId)); window.closeModal('cartonManageModal'); };
     window.viewCartonContents = () => { window.closeModal('cartonManageModal'); const c = cartons.find(x => x.id === editingCartonId); const items = products.filter(p => p.cartonId === editingCartonId); const soldCount = items.filter(p => p.status === 'sold').length; document.getElementById('ccTitle').innerText = `محتويات ${c.number}`; document.getElementById('ccSummary').innerText = `الكلي: ${items.length} | المباع: ${soldCount}`; const listContainer = document.getElementById('ccItemsList'); listContainer.innerHTML = ''; if(items.length === 0) listContainer.innerHTML = '<p style="text-align:center">فارغ</p>'; items.forEach(p => listContainer.innerHTML += createProductCard(p)); openModalWithHistory('cartonContentsModal'); };
