@@ -9,7 +9,7 @@
     <meta name="application-name" content="متجر النصر">
     <meta name="theme-color" content="#00695c">
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
-    <title>متجر النصر - V22</title>
+    <title>متجر النصر - V23</title>
     <style>
         :root { --primary: #00695c; --accent: #00897b; --bg: #f5f5f5; --text: #333; --red: #c62828; --green: #2e7d32; --orange: #ef6c00; --grey: #616161; }
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding-bottom: 80px; overscroll-behavior-y: contain; }
@@ -111,7 +111,7 @@
             font-weight: bold; font-size: 20px; cursor: pointer; border: none;
         }
 
-        /* V20 View Mode Styles */
+        /* View Mode Styles */
         .modal-header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px solid #eee; padding-bottom: 10px; }
         .modal-title { margin: 0; color: var(--primary); font-size: 18px; }
         .btn-edit-icon { background: none; border: none; font-size: 22px; cursor: pointer; color: var(--text); padding: 5px; }
@@ -304,7 +304,7 @@
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, query, orderBy, enableIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
     const firebaseConfig = {
         apiKey: "AIzaSyC6t0aokuoFiqcKuSL7cXfIw_Q99QsdGD8",
@@ -317,6 +317,13 @@
 
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
+
+    // ================== Enable Offline Persistence (The Fix) ==================
+    enableIndexedDbPersistence(db).catch((err) => {
+        if (err.code == 'failed-precondition') { console.log('Persistence failed: Multiple tabs open'); } 
+        else if (err.code == 'unimplemented') { console.log('Persistence not supported'); }
+    });
+
     const productsColl = collection(db, "products");
     const expensesColl = collection(db, "expenses");
     const cartonsColl = collection(db, "cartons");
@@ -381,14 +388,12 @@
 
     // ================== Back Button (History API) Logic ==================
     window.addEventListener('popstate', () => {
-        // When back button is pressed, close any open modal
         const openModals = document.querySelectorAll('.modal.open');
         if(openModals.length > 0) {
             openModals.forEach(modal => modal.classList.remove('open'));
         }
     });
 
-    // Helper to open modal and push state
     const openModalWithHistory = (id) => {
         const modal = document.getElementById(id);
         if(!modal.classList.contains('open')) {
@@ -397,10 +402,8 @@
         }
     };
 
-    // Helper to close modal and pop state if needed (manual close)
     window.closeModal = (id) => {
         document.getElementById(id).classList.remove('open');
-        // We only go back if we are currently in a "modal state" (not initial state)
         if(window.history.state && window.history.state.modal === id) {
             window.history.back();
         }
@@ -447,8 +450,14 @@
         }
 
         const visibleList = fullFilteredList.slice(0, displayLimit);
+        
+        // FIXED: Only show "No Data" if loadedCount >= 3 (loading finished)
         if(visibleList.length === 0) {
-            html += `<div style="text-align:center;padding:20px;color:#999">لا توجد بيانات</div>`;
+            if(loadedCount >= 3) {
+                html += `<div style="text-align:center;padding:20px;color:#999">لا توجد بيانات</div>`;
+            } else {
+                html += `<div style="text-align:center;padding:20px;color:#999">جاري التحميل...</div>`;
+            }
         } else {
             html += visibleList.map(item => {
                 if(currentTab === 'cartons') return createCartonCard(item);
@@ -459,7 +468,6 @@
 
         container.innerHTML = html;
         
-        // Hide/Show sentinel based on remaining items
         if(fullFilteredList.length <= displayLimit) {
             scrollSentinel.style.display = 'none';
         } else {
@@ -484,7 +492,9 @@
         const totalAllDebts = Object.values(customers).reduce((sum, c) => sum + c.totalDebt, 0);
         
         let html = `<div class="tab-summary"><div class="tab-summary-title">مجموع الديون الكلي</div><div class="tab-summary-val text-red">${totalAllDebts.toLocaleString()}</div></div>`;
-        if(Object.keys(customers).length === 0) { html += `<div style="text-align:center;padding:20px;color:#999">لا توجد ديون</div>`; }
+        if(Object.keys(customers).length === 0) { 
+             if(loadedCount >= 3) html += `<div style="text-align:center;padding:20px;color:#999">لا توجد ديون</div>`;
+        }
         else {
             html += Object.keys(customers).map(name => {
                 const c = customers[name];
@@ -495,7 +505,6 @@
         scrollSentinel.style.display = 'none';
     }
 
-    // --- Updated Open Modal Calls (Using History) ---
     window.openFilterModal = () => openModalWithHistory('filterModal');
     window.openSettings = () => openModalWithHistory('settingsModal');
     window.openExpenseModal = () => { document.getElementById('expAmount').value=''; document.getElementById('expNote').value=''; openModalWithHistory('expenseModal'); };
@@ -549,7 +558,6 @@
         openModalWithHistory('detailsModal'); 
     };
 
-    // ================== Standard Functions ==================
     window.toggleEditMode = () => { const view = document.getElementById('viewModeContainer'); const edit = document.getElementById('editModeContainer'); if(view.classList.contains('hidden')) { view.classList.remove('hidden'); edit.classList.add('hidden'); } else { view.classList.add('hidden'); edit.classList.remove('hidden'); } };
     window.toggleCustomDate = () => { document.getElementById('customDateInputs').classList.toggle('hidden', document.getElementById('filterType').value !== 'custom'); };
     window.applyFilter = () => { const type = document.getElementById('filterType').value; dateFilter = { type: type, start: null, end: null }; if(type === 'custom') { const start = document.getElementById('filterStart').value; const end = document.getElementById('filterEnd').value; if(!start || !end) return alert('حدد التاريخ'); dateFilter.start = new Date(start).setHours(0,0,0,0); dateFilter.end = new Date(end).setHours(23,59,59,999); } categoryFilter = document.getElementById('filterCategory').value; displayLimit = 20; window.closeModal('filterModal'); render(); };
@@ -574,9 +582,10 @@
     document.getElementById('confirmSellBtn').onclick = async () => { const price = document.getElementById('finalPrice').value; if(!price) return alert('أدخل السعر'); let data = { status: 'sold', soldPrice: price, dateSold: Date.now(), remainingDebt: 0 }; if(document.getElementById('isDebtCheck').checked) { const paid = document.getElementById('amountPaid').value; const cust = document.getElementById('customerName').value; if(!paid || !cust) return alert('أكمل بيانات الدين'); data.amountPaid = paid; data.customerName = cust; data.customerPhone = document.getElementById('customerPhone').value; data.remainingDebt = price - paid; } await updateDoc(doc(db, "products", selectedProductId), data); window.closeModal('sellModal'); };
     window.openExpenseModal = () => { document.getElementById('expAmount').value=''; document.getElementById('expNote').value=''; openModalWithHistory('expenseModal'); };
     document.getElementById('saveExpBtn').onclick = async () => { const amt = document.getElementById('expAmount').value; if(!amt) return; await addDoc(expensesColl, { type: document.getElementById('expType').value, amount: amt, note: document.getElementById('expNote').value, date: Date.now() }); window.closeModal('expenseModal'); };
-    document.getElementById('confirmPayBtn').onclick = async () => { const pay = parseFloat(document.getElementById('payAmount').value); if(!pay) return; const newDebt = selectedDebtProduct.remainingDebt - pay; if(newDebt < 0) return alert('المبلغ أكبر من الدين'); await updateDoc(doc(db, "products", selectedDebtProduct.id), { remainingDebt: newDebt, amountPaid: (parseFloat(selectedDebtProduct.amountPaid)||0) + pay }); window.closeModal('payDebtModal'); };
+    document.getElementById('confirmPayBtn').onclick = async () => { const pay = parseFloat(document.getElementById('payAmount').value); if(!pay) return; const newDebt = selectedDebtProduct.remainingDebt - pay; if(newDebt < 0) return alert('المبلغ أكبر من الدين'); await updateDoc(doc(db, "products", selectedDebtProduct.id), { remainingDebt: newDebt, amountPaid: (parseFloat(selectedDebtProduct.amountPaid)||0) + pay }); window.closeModal('payDebtModal'); window.closeModal('customerDetailsModal'); };
     document.getElementById('updateCartonBtn').onclick = async () => { await updateDoc(doc(db, "cartons", editingCartonId), { number: document.getElementById('editCName').value, cost: document.getElementById('editCCost').value, note: document.getElementById('editCNote').value }); window.closeModal('cartonManageModal'); };
     document.getElementById('deleteCartonBtn').onclick = async () => { const linkedItems = products.filter(p => p.cartonId === editingCartonId); if(linkedItems.length > 0) { if(!confirm(`تحذير: يوجد ${linkedItems.length} قطع في هذا الصندوق. هل أنت متأكد؟`)) return; } else { if(!confirm('حذف الصندوق نهائياً؟')) return; } await deleteDoc(doc(db, "cartons", editingCartonId)); window.closeModal('cartonManageModal'); };
+    window.viewCartonContents = () => { window.closeModal('cartonManageModal'); const c = cartons.find(x => x.id === editingCartonId); const items = products.filter(p => p.cartonId === editingCartonId); const soldCount = items.filter(p => p.status === 'sold').length; document.getElementById('ccTitle').innerText = `محتويات ${c.number}`; document.getElementById('ccSummary').innerText = `الكلي: ${items.length} | المباع: ${soldCount}`; const listContainer = document.getElementById('ccItemsList'); listContainer.innerHTML = ''; if(items.length === 0) listContainer.innerHTML = '<p style="text-align:center">فارغ</p>'; items.forEach(p => listContainer.innerHTML += createProductCard(p)); openModalWithHistory('cartonContentsModal'); };
 
     const tabs = ['tabCartons', 'tabAvailable', 'tabSold', 'tabDebts', 'tabExpenses'];
     tabs.forEach(t => document.getElementById(t).onclick = () => { currentTab = t.replace('tab', '').toLowerCase(); tabs.forEach(x => document.getElementById(x).classList.remove('active')); document.getElementById(t).classList.add('active'); displayLimit = 20; render(); });
